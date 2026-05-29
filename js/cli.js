@@ -331,53 +331,22 @@ const CLI = {
     },
 
     showProfile() {
-        this._setRightHeader('[ PROFILE.SYS ] — MICAH LIVESAY');
+        this._setRightHeader('[ PROFILE.SYS ]');
         this.brRight();
-
-        // ── EDIT THIS SECTION ──
-        const bio = [
-            'I craft immersive sonic experiences — from the microscopic',
-            'click of a UI interaction to the expansive texture of a',
-            'cinematic world.',
-            '',
-            'Sound is not decoration.',
-            'Sound is the feeling beneath the feeling.',
-            '',
-            'Based in [YOUR CITY]. Available for film, games, interactive,',
-            'and commercial projects worldwide.',
-        ];
-        bio.forEach(line => this.printRight(line, line === '' ? 'line-dim' : 'line-green'));
-        // ── END EDIT ──
-
-        this.brRight();
-        this.printRight('// QUICK FACTS', 'line-pink');
-        this.brRight();
-        this.printRight('  Years active   [ADD]', 'line-green');
-        this.printRight('  Specialties    Sound Design, Audio Engineering, Music Production', 'line-green');
-        this.printRight('  Credits        [ADD CREDITS]', 'line-green');
-        this.brRight();
-        this.printRight('Type "services" to see what I offer.', 'line-dim');
+        this.printParsed(SITE_CONTENT.pages.profile);
     },
 
     showPortfolio() {
         this._setRightHeader('[ PORTFOLIO.DAT ] — SELECTED WORKS');
         this.brRight();
-
-        // ── EDIT: add or remove project objects ──
-        const projects = [
-            { id:'001', title:'Project Title', type:'Sound Design',      client:'Client Name', year:'2024', desc:'Short description of the project and your role.' },
-            { id:'002', title:'Project Title', type:'Audio Engineering', client:'Client Name', year:'2024', desc:'Short description of the project and your role.' },
-            { id:'003', title:'Project Title', type:'Music Production',  client:'Client Name', year:'2023', desc:'Short description of the project and your role.' },
-        ];
-        // ── END EDIT ──
-
-        projects.forEach(p => {
+        SITE_CONTENT.pages.portfolio.forEach(p => {
             const item = document.createElement('div');
             item.className = 'portfolio-item';
             item.innerHTML = `
                 <span class="portfolio-title">[${p.id}] ${p.title}</span><br>
                 <span class="portfolio-meta">${p.type} &nbsp;·&nbsp; ${p.client} &nbsp;·&nbsp; ${p.year}</span><br>
                 <span class="line line-dim">${p.desc}</span>
+                ${p.link ? `<br><span class="line line-cyan">&gt; ${p.link}</span>` : ''}
             `;
             this.printElRight(item);
             this.brRight();
@@ -387,16 +356,7 @@ const CLI = {
     showBlog() {
         this._setRightHeader('[ BLOG.LOG ] — SOUND DIARIES & ARTICLES');
         this.brRight();
-
-        // ── EDIT: add or remove post objects ──
-        const posts = [
-            { date:'2024-01-15', tag:'SOUND DESIGN', title:'The Physics of Foley',                   preview:"Why the surfaces you record on matter more than the object itself..." },
-            { date:'2024-01-03', tag:'MIXING',        title:'Mixing for Emotion, Not Perfection',     preview:"A perfectly flat mix can feel completely dead. Here's why..." },
-            { date:'2023-12-20', tag:'WORKFLOW',      title:'Building a Sound Library from Scratch',  preview:"The system I use to tag, search, and never lose a sound again..." },
-        ];
-        // ── END EDIT ──
-
-        posts.forEach(p => {
+        SITE_CONTENT.pages.blog.forEach(p => {
             const div = document.createElement('div');
             div.className = 'blog-post';
             div.innerHTML = `
@@ -404,6 +364,7 @@ const CLI = {
                 <span class="blog-tag">${p.tag}</span><br>
                 <span class="blog-title">&gt; ${p.title}</span><br>
                 <span class="line line-dim">${p.preview}</span>
+                ${p.link ? `<br><span class="line line-cyan">&nbsp;&nbsp;[ read more ]</span>` : ''}
             `;
             this.printElRight(div);
             this.brRight();
@@ -414,12 +375,11 @@ const CLI = {
         this._setRightHeader('[ CONTACT.EXE ] — OPEN TRANSMISSION');
         this.brRight();
 
-        // ── EDIT LINKS ──
-        this.printRight('EMAIL      your@email.com', 'line-green');
-        this.printRight('TWITTER    @yourhandle', 'line-green');
-        this.printRight('LINKEDIN   linkedin.com/in/yourprofile', 'line-green');
-        this.printRight('INSTAGRAM  @yourhandle', 'line-green');
-        // ── END EDIT ──
+        const c = SITE_CONTENT.pages.contact;
+        if (c.email)     this.printRight(`EMAIL      ${c.email}`,    'line-green');
+        if (c.twitter)   this.printRight(`TWITTER    ${c.twitter}`,  'line-green');
+        if (c.linkedin)  this.printRight(`LINKEDIN   ${c.linkedin}`, 'line-green');
+        if (c.instagram) this.printRight(`INSTAGRAM  ${c.instagram}`,'line-green');
 
         this.brRight();
         this.printRight('// SEND A MESSAGE', 'line-pink');
@@ -495,22 +455,7 @@ const CLI = {
     showServices() {
         this._setRightHeader('[ SERVICES.SYS ]');
         this.brRight();
-
-        // ── EDIT SERVICES ──
-        const services = [
-            { cat:'SOUND DESIGN',      items:'Foley, SFX, Synthesis, Sampling, Field Recording' },
-            { cat:'AUDIO ENGINEERING', items:'Recording, Editing, Mixing' },
-            { cat:'MIXING',            items:'Stereo, Immersive (Dolby Atmos), Stem Mixing' },
-            { cat:'MASTERING',         items:'Streaming, Vinyl, Broadcast' },
-            { cat:'FORMATS',           items:'Film, Television, Games, Podcast, Commercial' },
-        ];
-        // ── END EDIT ──
-
-        services.forEach(s => {
-            this.printRight(`[ ${s.cat} ]`, 'line-pink');
-            this.printRight(`  ${s.items}`, 'line-green');
-            this.brRight();
-        });
+        this.printParsed(SITE_CONTENT.pages.services);
     },
 
     shutdown() {
@@ -586,6 +531,39 @@ const CLI = {
         this._animDelay = 0;
         this.print('Terminal cleared. Type "help" for commands.', 'line-dim');
         setTimeout(() => { this.br(); this.showSuggestions(); this.scrollBottom(); }, this._animDelay + 100);
+    },
+
+    // ── Content parser ───────────────────────────────────────────────────────
+
+    // Converts a template string from content.js pages into styled CLI lines.
+    // Markers:  ## Heading   → pink   |  [Label]: value → green key/value
+    //           - item       → bullet |  ---            → dim divider
+    //           blank line   → br     |  plain text     → dim body text
+    _parseContent(text) {
+        return text.trim().split('\n').map(raw => {
+            const line = raw.trim();
+            if (line === '')
+                return { text: '', cls: '' };
+            if (line === '---')
+                return { text: '────────────────────────────────────────', cls: 'line-dim' };
+            if (line.startsWith('## '))
+                return { text: line.slice(3), cls: 'line-pink' };
+            if (line.startsWith('# '))
+                return { text: line.slice(2), cls: 'line-pink' };
+            const kv = line.match(/^\[([^\]]+)\]:\s*(.*)$/);
+            if (kv)
+                return { text: `  ${kv[1].padEnd(14)} ${kv[2]}`, cls: 'line-green' };
+            if (line.startsWith('- '))
+                return { text: `  • ${line.slice(2)}`, cls: 'line-green' };
+            return { text: line, cls: 'line-dim' };
+        });
+    },
+
+    printParsed(text) {
+        this._parseContent(text).forEach(({ text, cls }) => {
+            if (text === '') this.brRight();
+            else this.printRight(text, cls || 'line-dim');
+        });
     },
 
     // ── Suggestion buttons ────────────────────────────────────────────────────

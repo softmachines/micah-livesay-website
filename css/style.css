@@ -85,27 +85,6 @@ button, a, input, [role="button"] {
     to   { transform: translateY(100vh); }
 }
 
-/* Screen flicker */
-.crt-wrapper::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: rgba(0,255,65,0.015);
-    pointer-events: none;
-    z-index: 18;
-    animation: flicker 7s infinite;
-}
-@keyframes flicker {
-    0%,100% { opacity:0; }
-    19%     { opacity:0; }
-    19.5%   { opacity:1; }
-    20%     { opacity:0; }
-    41%     { opacity:0; }
-    41.4%   { opacity:0.7; }
-    41.8%   { opacity:0; }
-    79%     { opacity:0; }
-    79.3%   { opacity:0.5; }
-    79.6%   { opacity:0; }
-}
 
 /* Scanlines */
 .scanlines {
@@ -138,6 +117,22 @@ button, a, input, [role="button"] {
     60% { opacity:0.3; transform:translate(0); }
     80% { opacity:0.1; }
     100%{ opacity:0; }
+}
+
+/* ─── FULL-SCREEN CA GLITCH ───────────────────────────── */
+/* Applied via JS to .pane-container — mirrors the splash text glitch */
+
+@keyframes caGlitch {
+    /* steps(1,end) on each keyframe = hold state then hard-snap to next */
+    0%  { animation-timing-function:steps(1,end); filter:brightness(1.05);                         transform:none; }
+    12% { animation-timing-function:steps(1,end); filter:hue-rotate(90deg)   saturate(5)  brightness(3);   transform:translate(-8px,0) skewX(3deg); }
+    24% { animation-timing-function:steps(1,end); filter:hue-rotate(-60deg)  saturate(4)  brightness(2);   transform:translate(6px,1px) skewX(-2deg); }
+    36% { animation-timing-function:steps(1,end); filter:saturate(0) brightness(7) contrast(10);           transform:translate(-4px,-1px); }
+    48% { animation-timing-function:steps(1,end); filter:hue-rotate(180deg)  saturate(5)  brightness(3.5); transform:translate(5px,0) skewX(4deg); }
+    60% { animation-timing-function:steps(1,end); filter:hue-rotate(-120deg) saturate(4)  brightness(2.5); transform:translate(-3px,2px) skewX(-3deg); }
+    72% { animation-timing-function:steps(1,end); filter:saturate(0) brightness(5) contrast(8);            transform:translate(2px,-1px); }
+    86% { animation-timing-function:steps(1,end); filter:hue-rotate(240deg)  saturate(4)  brightness(2);   transform:translate(-2px,0); }
+    100%{ filter:brightness(1.05); transform:none; }
 }
 
 /* ─── PANE CONTAINER ──────────────────────────────────── */
@@ -572,6 +567,45 @@ button, a, input, [role="button"] {
 @keyframes splashPulse {
     0%, 100% { opacity: 0.75; }
     50%      { opacity: 1; }
+}
+
+/* Glitch-out animation on keypress — runs before fullscreen */
+.splash-content.glitch-out {
+    animation: splashGlitchOut 0.65s linear forwards;
+}
+
+@keyframes splashGlitchOut {
+    0%  { opacity:1; filter:none; transform:none; clip-path:inset(0 0 0 0); }
+    8%  { filter:hue-rotate(90deg) saturate(5) brightness(3);
+          transform:translate(-8px,0) skewX(4deg); }
+    16% { filter:hue-rotate(210deg) saturate(3) brightness(2);
+          transform:translate(6px,2px) skewX(-3deg);
+          clip-path:inset(10% 0 25% 0); }
+    24% { filter:hue-rotate(330deg) saturate(6) brightness(4);
+          transform:translate(-5px,-2px) scaleX(1.04);
+          clip-path:inset(0 0 0 0); }
+    32% { filter:saturate(0) brightness(6) contrast(10);
+          transform:translate(4px,1px) skewX(5deg);
+          clip-path:inset(0 0 45% 0); }
+    40% { filter:hue-rotate(160deg) saturate(5) brightness(2.5);
+          transform:translate(-6px,0) skewX(-4deg);
+          clip-path:inset(0 0 0 0); opacity:1; }
+    48% { filter:hue-rotate(280deg) saturate(4) brightness(3);
+          transform:translate(5px,-1px);
+          clip-path:inset(35% 0 15% 0); }
+    56% { filter:saturate(0) brightness(9) contrast(16);
+          transform:translate(-3px,2px) scaleX(0.97);
+          clip-path:inset(0 0 0 0); }
+    64% { opacity:0.55; filter:hue-rotate(70deg) saturate(4) brightness(2.5);
+          transform:translate(3px,0) skewX(3deg);
+          clip-path:inset(0 0 65% 0); }
+    74% { opacity:0.25; filter:saturate(0) brightness(4);
+          transform:translate(-2px,-1px);
+          clip-path:inset(55% 0 0 0); }
+    84% { opacity:0.08; filter:saturate(0) brightness(2);
+          transform:scaleY(0.4); }
+    92% { opacity:0.02; transform:scaleY(0.08); }
+    100%{ opacity:0; transform:scaleY(0); clip-path:inset(50% 0 50% 0); }
 }
 
 .splash-sysid {

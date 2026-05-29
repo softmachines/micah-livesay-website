@@ -20,14 +20,19 @@ const Main = {
             if (this._started) return;
             this._started = true;
 
-            this.requestFullscreen();
+            // Phase 1: glitch out the splash text (0.65s)
+            const content = splash.querySelector('.splash-content');
+            if (content) content.classList.add('glitch-out');
 
-            // Flash → fade the splash out
-            splash.classList.add('fade-out');
+            // Phase 2: after text is gone, go fullscreen then fade the splash container
             setTimeout(() => {
-                splash.style.display = 'none';
-                this.init();
-            }, 580);
+                this.requestFullscreen();
+                splash.classList.add('fade-out');
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    this.init();
+                }, 580);
+            }, 680);
         };
 
         // Any real key dismisses the splash (ignore lone modifiers)
@@ -396,15 +401,16 @@ const Main = {
         void overlay.offsetWidth;
         overlay.classList.add('active');
 
+        // Apply CA glitch keyframes to all terminal content —
+        // temporarily overrides the crtDrift animation
         const panes = document.getElementById('pane-container');
-        panes.style.textShadow = '2px 0 #ff2d78, -2px 0 #00ffcc';
-        panes.style.transform  = `translate(${(Math.random() - 0.5) * 3}px, 0)`;
+        panes.style.animation = 'caGlitch 0.25s linear forwards';
 
         setTimeout(() => {
-            panes.style.textShadow = '';
-            panes.style.transform  = '';
+            // Remove inline override — CSS crtDrift resumes automatically
+            panes.style.animation = '';
             overlay.classList.remove('active');
-        }, 180);
+        }, 480);
     },
 };
 

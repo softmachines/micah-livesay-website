@@ -51,10 +51,10 @@ const SITE_CONTENT = {
         [5500,  '', ''],
         [5650,  '>> INITIALIZING AUDIO SUBSYSTEMS...', 'line-dim'],
         [5850,  '', ''],
-        [6000,  '   Applying tastful saturation to signals...', 'line-green', 'typewriter'],
-        [6200,  '   Cleaning granular windows...', 'line-green', 'typewriter'],
-        [6400,  '   Riding faders...', 'line-green', 'typewriter'],
-        [6600,  '   Setting wave tables...', 'line-green', 'typewriter'],
+        [6000,  '   Saturating low end...', 'line-green', 'typewriter'],
+        [6200,  '   Measuring granular density...', 'line-green', 'typewriter'],
+        [6400,  '   Riding Taurian faders...', 'line-green', 'typewriter'],
+        [6600,  '   Drawing wave tables...', 'line-green', 'typewriter'],
         [6750,  '', ''],
         [6900,  '   NETWORK WEATHER: Spectral clouds forming late evening.', 'line-green', 'typewriter'],
         [6950,  '   Isolated bursts of stochastic noise probable. Dress appropriately', 'line-green', 'typewriter'],
@@ -103,5 +103,131 @@ const SITE_CONTENT = {
     // ── CLI PROMPT ────────────────────────────────────────────────────────────
 
     prompt: 'MICAH@LIVESAY',
+
+    // ── PAGE CONTENT ─────────────────────────────────────────────────────────
+    //
+    // Write naturally. Simple formatting markers:
+    //   ## Heading        → pink heading
+    //   [Label]: value    → key / value pair
+    //   - item            → bulleted list item
+    //   ---               → horizontal divider
+    //   blank line        → blank line in terminal
+    //   plain text        → body text
+    //
+    // Portfolio and blog use plain objects — just fill in the fields.
+
+    pages: {
+
+        // ── PROFILE ──────────────────────────────────────────────────────────
+
+        profile: `
+## MICAH LIVESAY
+Audio Engineer & Sound Designer
+
+Write your bio here. Each line becomes a line in the terminal.
+Write naturally — no special formatting needed for regular text.
+
+Leave a blank line between paragraphs and it becomes a blank
+line in the terminal output.
+
+---
+[Status]:       Available for work
+[Based]:        Your City
+[Specialties]:  Sound Design, Audio Engineering, Production
+[Credits]:      Add your credits here
+        `,
+
+
+        // ── SERVICES ─────────────────────────────────────────────────────────
+
+        services: `
+## SOUND DESIGN
+Foley, SFX, Synthesis, Sampling, Field Recording.
+Custom sonic identities and interactive audio systems.
+
+## AUDIO ENGINEERING
+Recording, Editing, Mixing, Mastering.
+Stereo, Immersive (Dolby Atmos), Stem delivery.
+
+## FORMATS
+Film · Television · Games · Podcast · Commercial
+        `,
+
+
+        // ── PORTFOLIO ────────────────────────────────────────────────────────
+        // Add or remove objects to add or remove projects.
+        // Set link to null if there is no URL.
+
+        portfolio: [
+            {
+                id:     '001',
+                title:  'Project Title',
+                type:   'Sound Design',
+                client: 'Client Name',
+                year:   '2024',
+                desc:   'Short description of the project and your role.',
+                link:   null,
+            },
+            {
+                id:     '002',
+                title:  'Project Title',
+                type:   'Audio Engineering',
+                client: 'Client Name',
+                year:   '2024',
+                desc:   'Short description of the project and your role.',
+                link:   null,
+            },
+            {
+                id:     '003',
+                title:  'Project Title',
+                type:   'Music Production',
+                client: 'Client Name',
+                year:   '2023',
+                desc:   'Short description of the project and your role.',
+                link:   null,
+            },
+        ],
+
+
+        // ── BLOG ─────────────────────────────────────────────────────────────
+        // Add or remove objects to add or remove posts.
+        // Set link to null if there is no URL.
+
+        blog: [
+            {
+                date:    '2024-01-15',
+                tag:     'SOUND DESIGN',
+                title:   'The Physics of Foley',
+                preview: 'Why the surfaces you record on matter more than the object itself...',
+                link:    null,
+            },
+            {
+                date:    '2024-01-03',
+                tag:     'MIXING',
+                title:   'Mixing for Emotion, Not Perfection',
+                preview: "A perfectly flat mix can feel completely dead. Here's why...",
+                link:    null,
+            },
+            {
+                date:    '2023-12-20',
+                tag:     'WORKFLOW',
+                title:   'Building a Sound Library from Scratch',
+                preview: 'The system I use to tag, search, and never lose a sound again...',
+                link:    null,
+            },
+        ],
+
+
+        // ── CONTACT ──────────────────────────────────────────────────────────
+        // Remove or leave blank any line you don't want shown.
+
+        contact: {
+            email:     'your@email.com',
+            twitter:   '@yourhandle',
+            linkedin:  'linkedin.com/in/yourprofile',
+            instagram: '@yourhandle',
+        },
+
+    },
 
 };
