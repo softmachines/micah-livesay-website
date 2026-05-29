@@ -297,13 +297,6 @@ class StaticEffect {
 
         this._ctx.putImageData(out, 0, 0);
 
-        // Occasional horizontal interference line
-        if (Math.random() > 0.55) {
-            const ly = Math.floor(Math.random() * h);
-            this._ctx.fillStyle = `rgba(0,255,65,${Math.random() * 0.2})`;
-            this._ctx.fillRect(0, ly, w, 1 + Math.floor(Math.random() * 2));
-        }
-
         // Downscale to bloom canvas — CSS handles the GPU blur
         this._bloomCtx.drawImage(this._canvas, 0, 0, this._bloom.width, this._bloom.height);
     }

@@ -4,6 +4,7 @@ const Main = {
     formFocus: false,
     glitchTimer: null,
     _started: false,
+    _splashFx: null,
     _cursorX: 0,
     _cursorY: 0,
     _glitching: false,
@@ -189,122 +190,69 @@ const Main = {
 
     // ── Splash image-in-static effect ────────────────────────────────────────
 
-    _splashFrameId: null,
-    _splashRunning: false,
-
     initSplashEffect() {
-        const canvas = document.getElementById('splash-canvas');
-        if (!canvas) return;
+        const splash = document.getElementById('splash');
+        if (!splash) return;
 
-        const ctx       = canvas.getContext('2d');
-        const srcCanvas = document.createElement('canvas');
-        const srcCtx    = srcCanvas.getContext('2d');
-        const INF       = 0.20; // 20% image influence — matches slider position user found
+        const build = () => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
 
-        this._splashRunning = true;
-        let srcReady        = false;
-        let lastFrame       = 0;
-        const TARGET_MS     = 1000 / 30; // cap at ~30fps to stay light on CPU
+            // Draw each splash text element at its exact screen position
+            // so the static source perfectly matches the HTML layout
+            const off     = document.createElement('canvas');
+            off.width     = w;
+            off.height    = h;
+            const octx    = off.getContext('2d');
 
-        const sizeCanvases = () => {
-            canvas.width    = window.innerWidth;
-            canvas.height   = window.innerHeight;
-            srcCanvas.width  = canvas.width;
-            srcCanvas.height = canvas.height;
-            if (srcReady) drawSrc();
+            octx.fillStyle = '#000';
+            octx.fillRect(0, 0, w, h);
+            octx.fillStyle    = '#fff';
+            octx.textAlign    = 'center';
+            octx.textBaseline = 'middle';
+
+            const els = splash.querySelectorAll(
+                '.splash-sysid span, .splash-divider, .splash-status span'
+            );
+
+            const drawEls = (alpha) => {
+                octx.globalAlpha = alpha;
+                els.forEach(el => {
+                    const r  = el.getBoundingClientRect();
+                    const cs = getComputedStyle(el);
+                    octx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+                    octx.fillText(el.textContent.trim(), r.left + r.width / 2, r.top + r.height / 2);
+                });
+            };
+
+            drawEls(1);                    // crisp pass
+            octx.filter = 'blur(6px)';
+            drawEls(0.3);                  // glow pass
+            octx.filter      = 'none';
+            octx.globalAlpha = 1;
+
+            const img = new Image();
+            img.onload = () => {
+                this._splashFx = new StaticEffect(splash, {
+                    brightness:      0.85,
+                    bloomOpacity:    0.4,
+                    bloomBlur:       6,
+                    bloomBrightness: 1.8,
+                    zIndex:          1,
+                });
+                this._splashFx.setImage(img);
+            };
+            img.src = off.toDataURL();
         };
 
-        // Draw image cover-fitted into srcCanvas (like background-size: cover)
-        const img = new Image();
-        const drawSrc = () => {
-            const w = srcCanvas.width, h = srcCanvas.height;
-            const iw = img.naturalWidth, ih = img.naturalHeight;
-            const scale = Math.max(w / iw, h / ih);
-            const sw = iw * scale, sh = ih * scale;
-            srcCtx.clearRect(0, 0, w, h);
-            srcCtx.drawImage(img, (w - sw) / 2, (h - sh) / 2, sw, sh);
-        };
-
-        img.onload = () => {
-            srcReady = true;
-            drawSrc();
-        };
-        img.src = 'images/we.webp';
-
-        const drawFrame = () => {
-            const w = canvas.width, h = canvas.height;
-            const out = ctx.createImageData(w, h);
-            const d   = out.data;
-            const src = srcReady ? srcCtx.getImageData(0, 0, w, h).data : null;
-
-            const rowMod = new Float32Array(h);
-            for (let y = 0; y < h; y++) rowMod[y] = 0.55 + Math.random() * 0.9;
-
-            for (let y = 0; y < h; y++) {
-                const rm = rowMod[y];
-                for (let x = 0; x < w; x++) {
-                    const p = (y * w + x) * 4;
-
-                    const luma = src
-                        ? (src[p] * 0.299 + src[p+1] * 0.587 + src[p+2] * 0.114) / 255
-                        : Math.random(); // pure noise before image loads
-
-                    const randBright = Math.random();
-                    const imgBright  = luma * (0.6 + Math.random() * 0.8);
-                    const bright     = randBright * (1 - INF) + imgBright * INF;
-                    const v          = bright * rm;
-                    const roll       = Math.random();
-
-                    if (roll > 0.988) {
-                        // White spark
-                        const sp = Math.min(1, v * 1.5);
-                        d[p] = d[p+1] = d[p+2] = Math.floor(sp * 235);
-                        d[p+3] = 255;
-                    } else if (roll > 0.970) {
-                        // Pink aberration
-                        const b = Math.floor(v * 240);
-                        d[p] = b; d[p+1] = 0; d[p+2] = Math.floor(b * 0.55);
-                        d[p+3] = 255;
-                    } else if (roll > 0.952) {
-                        // Cyan aberration
-                        d[p] = 0; d[p+1] = Math.floor(v * 220); d[p+2] = Math.floor(v * 180);
-                        d[p+3] = 255;
-                    } else {
-                        // Green static
-                        d[p] = 0; d[p+1] = Math.floor(v * 255); d[p+2] = Math.floor(v * 20);
-                        d[p+3] = 255;
-                    }
-                }
-            }
-
-            ctx.putImageData(out, 0, 0);
-
-            // Occasional horizontal interference line
-            if (Math.random() > 0.55) {
-                const ly = Math.floor(Math.random() * h);
-                ctx.fillStyle = `rgba(0,255,65,${Math.random() * 0.18 * INF})`;
-                ctx.fillRect(0, ly, w, 1 + Math.floor(Math.random() * 2));
-            }
-        };
-
-        const loop = (ts) => {
-            if (!this._splashRunning) return;
-            if (ts - lastFrame >= TARGET_MS) {
-                lastFrame = ts;
-                drawFrame();
-            }
-            this._splashFrameId = requestAnimationFrame(loop);
-        };
-
-        sizeCanvases();
-        this._splashFrameId = requestAnimationFrame(loop);
+        // Wait for web fonts before measuring/drawing
+        document.fonts.ready.then(build);
     },
 
     stopSplashEffect() {
-        this._splashRunning = false;
-        if (this._splashFrameId) {
-            cancelAnimationFrame(this._splashFrameId);
-            this._splashFrameId = null;
+        if (this._splashFx) {
+            this._splashFx.destroy();
+            this._splashFx = null;
         }
     },
 

@@ -609,7 +609,7 @@ button, a, input, [role="button"] {
 
 .splash-prompt {
     color: var(--pink);
-    font-size: 16px;
+    font-size: 24px;
     margin-top: 6px;
     letter-spacing: 1px;
     text-shadow:

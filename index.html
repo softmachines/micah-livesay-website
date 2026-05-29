@@ -13,12 +13,11 @@
 
     <!-- SPLASH: shown before boot, dismissed by any key or click -->
     <div id="splash" class="splash-screen">
-        <!-- Image-in-static background — canvas behind the text -->
-        <canvas id="splash-canvas"></canvas>
+        <!-- StaticEffect canvases injected here by main.js -->
         <div class="splash-content">
             <div class="splash-sysid">
                 <span>MicahWarez_OS v2.0.77 </span>
-                <span>NEURAL INTERFACE TERMINAL</span>
+                <span>can </span>
             </div>
             <div class="splash-divider">────────────────────────────────────</div>
             <div class="splash-status">
@@ -66,6 +65,7 @@
     <!-- Phosphor trail canvas — sits above everything, pointer-events none -->
     <canvas id="cursor-trail"></canvas>
 
+    <script src="js/StaticEffect.js"></script>
     <script src="js/sound-engine.js"></script>
     <script src="js/boot.js"></script>
     <script src="js/cli.js"></script>
