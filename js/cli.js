@@ -75,20 +75,21 @@ const CLI = {
         const leftDone = this._animDelay + 100;
         setTimeout(() => { this.br(); this.showSuggestions(); this.scrollBottom(); }, leftDone);
 
-        // If split already open: clear right pane immediately and re-run
-        // If split not open: open it first (takes ~950ms), then run
-        const openDelay = this.splitOpen ? 0 : 1000;
-
+        // Content command → right pane
         if (!this.splitOpen) {
+            // First time: open the split, then run the command
             this._openSplit();
+            setTimeout(() => {
+                this._rightDelay = 0;
+                this.commands[input].run();
+            }, 1000);
         } else {
-            this._clearRightContent();
+            // Split already open: static burst clears old content, then run command
+            this._staticBurstSwitch(() => {
+                this._rightDelay = 0;
+                this.commands[input].run();
+            });
         }
-
-        setTimeout(() => {
-            this._rightDelay = 0;
-            this.commands[input].run();
-        }, openDelay);
     },
 
     // ── Split pane management ─────────────────────────────────────────────────
@@ -122,6 +123,100 @@ const CLI = {
     _clearRightContent() {
         document.getElementById('right-content').innerHTML = '';
         document.getElementById('right-header').textContent = '';
+    },
+
+    _staticBurstSwitch(onDone) {
+        const canvas = document.getElementById('switch-canvas');
+        const ctx    = canvas.getContext('2d');
+        const pane   = canvas.parentElement;
+        const rect   = pane.getBoundingClientRect();
+
+        canvas.width  = Math.ceil(rect.width);
+        canvas.height = Math.ceil(rect.height);
+        canvas.style.display  = 'block';
+        canvas.style.opacity  = '0';
+        canvas.style.transition = 'none';
+
+        let frame          = 0;
+        const glitchFrames = 9;   // random on/off flicker
+        const holdFrames   = 14;  // full static
+        const total        = glitchFrames + holdFrames;
+        let swapped        = false;
+
+        const drawNoise = () => {
+            const w = canvas.width, h = canvas.height;
+            const img = ctx.createImageData(w, h);
+            const d   = img.data;
+
+            const rowMod = new Float32Array(h);
+            for (let y = 0; y < h; y++) rowMod[y] = 0.72 + Math.random() * 0.56;
+
+            for (let y = 0; y < h; y++) {
+                const rm = rowMod[y];
+                for (let x = 0; x < w; x++) {
+                    const p = (y * w + x) * 4;
+                    const v = Math.random();
+                    const b = Math.floor(v * 255 * rm);
+                    if (v > 0.987) {
+                        d[p] = d[p+1] = d[p+2] = 230; d[p+3] = 255;
+                    } else if (v > 0.968) {
+                        d[p] = Math.floor(b*0.9); d[p+1] = 0; d[p+2] = Math.floor(b*0.6); d[p+3] = 255;
+                    } else if (v > 0.950) {
+                        d[p] = 0; d[p+1] = Math.floor(b*0.9); d[p+2] = Math.floor(b*0.8); d[p+3] = 255;
+                    } else {
+                        const g = Math.floor(Math.random() * 255 * rm);
+                        d[p] = 0; d[p+1] = g; d[p+2] = Math.floor(g*0.08); d[p+3] = 255;
+                    }
+                }
+            }
+            ctx.putImageData(img, 0, 0);
+
+            if (Math.random() > 0.5) {
+                const ly = Math.floor(Math.random() * h);
+                ctx.fillStyle = `rgba(0,255,65,${Math.random() * 0.22})`;
+                ctx.fillRect(0, ly, w, 1 + Math.floor(Math.random() * 2));
+            }
+        };
+
+        const loop = () => {
+            if (frame < glitchFrames) {
+                // Hard flicker: probability of visible ramps 0% → 100% over 9 frames
+                canvas.style.opacity = Math.random() < (frame / (glitchFrames - 1)) ? '1' : '0';
+                drawNoise();
+            } else {
+                canvas.style.opacity = '1';
+                drawNoise();
+
+                // Swap header + clear content on first full-static frame (hidden under static)
+                if (!swapped) {
+                    swapped = true;
+                    this._clearRightContent();
+                }
+            }
+
+            frame++;
+            if (frame < total) {
+                requestAnimationFrame(loop);
+            } else {
+                // Flash
+                ctx.fillStyle = 'rgba(195,255,210,0.9)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                setTimeout(() => {
+                    // Snap to dark
+                    ctx.fillStyle = '#010802';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    setTimeout(() => {
+                        canvas.style.display = 'none';
+                        canvas.style.opacity = '0';
+                        if (onDone) onDone();
+                    }, 40);
+                }, 60);
+            }
+        };
+
+        requestAnimationFrame(loop);
     },
 
     _setRightHeader(text) {

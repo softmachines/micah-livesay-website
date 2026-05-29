@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONTENT SWITCHING DEMOS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green:     #00ff41;
+            --green-dim: #00b32c;
+            --green-dark:#003d0f;
+            --pink:      #ff2d78;
+            --pink-dim:  #cc1a57;
+            --cyan:      #00ffcc;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            background: #000;
+            color: var(--green);
+            font-family: 'Share Tech Mono', monospace;
+            padding: 28px 32px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--pink);
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px rgba(255,45,120,0.55);
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--green-dim);
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 28px;
+        }
+
+        .demos {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+
+        .demo-block {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .demo-label {
+            color: var(--pink);
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(255,45,120,0.4);
+        }
+
+        /* ── THE SCREEN ── */
+        .demo-screen {
+            width: 100%;
+            height: 380px;
+            background: #010802;
+            border: 1px solid #001a06;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Scanlines */
+        .demo-screen::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px, transparent 2px,
+                rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px
+            );
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* ── LEFT PANEL ── */
+        .demo-left {
+            width: 35%;
+            flex-shrink: 0;
+            padding: 16px 14px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--pink-dim);
+            box-shadow: 2px 0 10px rgba(255,45,120,0.12);
+        }
+
+        .demo-history { flex: 1; overflow: hidden; }
+
+        .cli-line {
+            display: block;
+            font-size: 11px;
+            line-height: 1.65;
+            color: var(--green-dim);
+            opacity: 0.55;
+            text-shadow: 0 0 4px rgba(0,179,44,0.3);
+        }
+        .cli-line.cyan  { color:var(--cyan);  opacity:1; text-shadow:0 0 5px rgba(0,255,204,0.5); }
+        .cli-line.pink  { color:var(--pink);  opacity:1; text-shadow:0 0 5px rgba(255,45,120,0.5); }
+        .cli-line.bright{ color:var(--green); opacity:1; text-shadow:0 0 5px rgba(0,255,65,0.5); }
+
+        .demo-prompt {
+            font-size: 11px;
+            margin-top: 10px;
+            color: var(--pink);
+            text-shadow: 0 0 6px rgba(255,45,120,0.5);
+        }
+
+        .demo-cmds {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .demo-cmd-btn {
+            background: transparent;
+            border: 1px solid var(--pink-dim);
+            color: var(--pink);
+            font-family: inherit;
+            font-size: 10px;
+            padding: 2px 9px;
+            cursor: pointer;
+            text-shadow: 0 0 4px rgba(255,45,120,0.4);
+            transition: background 0.1s, box-shadow 0.1s;
+        }
+        .demo-cmd-btn:hover {
+            background: rgba(255,45,120,0.1);
+            box-shadow: 0 0 8px rgba(255,45,120,0.25);
+        }
+        .demo-cmd-btn.active {
+            border-color: var(--pink);
+            background: rgba(255,45,120,0.12);
+        }
+        .demo-cmd-btn:disabled { opacity:0.35; cursor:not-allowed; }
+
+        /* ── RIGHT PANEL ── */
+        .demo-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .right-header {
+            padding: 12px 14px 8px;
+            color: var(--pink);
+            font-size: 11px;
+            border-bottom: 1px solid rgba(255,45,120,0.2);
+            text-shadow: 0 0 8px rgba(255,45,120,0.6);
+            flex-shrink: 0;
+            letter-spacing: 1px;
+            transition: opacity 0.15s;
+        }
+
+        /* The content area — contains canvas overlay + lines div */
+        .right-content-wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .right-lines {
+            padding: 10px 14px;
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        .content-line {
+            display: block;
+            font-size: 11px;
+            line-height: 1.7;
+            color: var(--green);
+            text-shadow: 0 0 5px rgba(0,255,65,0.4);
+        }
+        .content-line.pink { color:var(--pink); text-shadow:0 0 5px rgba(255,45,120,0.45); }
+        .content-line.dim  { color:var(--green-dim); opacity:0.65; }
+        .content-line.cyan { color:var(--cyan); text-shadow:0 0 5px rgba(0,255,204,0.4); }
+
+        /* ── PHOSPHOR DECAY ── */
+        .phosphor-out {
+            animation: phosphorDecay 680ms ease-in forwards;
+        }
+
+        @keyframes phosphorDecay {
+            0%   { opacity:1; filter:none; }
+            /* brief glow — phosphor excited, last burst of energy */
+            18%  { opacity:1; filter:brightness(1.6) blur(0px); }
+            /* colour starts shifting, glow spreads */
+            38%  { opacity:0.7; filter:brightness(1.15) blur(0.4px); }
+            /* signal weakening, blur increases */
+            62%  { opacity:0.3; filter:brightness(0.55) blur(1px); }
+            /* almost gone */
+            82%  { opacity:0.08; filter:brightness(0.2) blur(1.8px); }
+            100% { opacity:0; filter:brightness(0) blur(2px); }
+        }
+
+        /* ── STATIC BURST CANVAS ── */
+        .static-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            /* Low canvas resolution = big blocky pixels = authentic CRT static */
+            image-rendering: pixelated;
+            display: none;
+            z-index: 10;
+        }
+
+        /* back link */
+        .back-link {
+            display: inline-block;
+            margin-top: 28px;
+            color: var(--green-dim);
+            font-size: 12px;
+            opacity: 0.6;
+            text-decoration: none;
+        }
+        .back-link:hover { opacity:1; }
+    </style>
+</head>
+<body>
+
+<h1>// CONTENT SWITCHING DEMOS</h1>
+<p class="subtitle">Click any command button to trigger the switch animation. Try them in sequence to compare.</p>
+
+<div class="demos">
+
+    <!-- ── OPTION A: PHOSPHOR DECAY ── -->
+    <div class="demo-block">
+        <span class="demo-label">OPTION A &mdash; Phosphor Decay</span>
+        <div class="demo-screen">
+
+            <div class="demo-left">
+                <div class="demo-history">
+                    <span class="cli-line">>> MICAH_OS v2.0.77 // READY</span>
+                    <br>
+                    <span class="cli-line cyan" id="echo-a">MICAH@LIVESAY:~$ profile</span>
+                    <span class="cli-line bright">> output in right panel</span>
+                </div>
+                <div class="demo-prompt">MICAH@LIVESAY:~$ _</div>
+                <div class="demo-cmds">
+                    <button class="demo-cmd-btn active" id="btn-a-profile"  onclick="switchA('profile')">profile</button>
+                    <button class="demo-cmd-btn"        id="btn-a-skills"   onclick="switchA('skills')">skills</button>
+                    <button class="demo-cmd-btn"        id="btn-a-contact"  onclick="switchA('contact')">contact</button>
+                    <button class="demo-cmd-btn"        id="btn-a-blog"     onclick="switchA('blog')">blog</button>
+                </div>
+            </div>
+
+            <div class="demo-right">
+                <div class="right-header" id="header-a">[ PROFILE.SYS ]</div>
+                <div class="right-content-wrap">
+                    <div class="right-lines" id="lines-a"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── OPTION B: STATIC BURST CLEAR ── -->
+    <div class="demo-block">
+        <span class="demo-label">OPTION B &mdash; Static Burst Clear</span>
+        <div class="demo-screen">
+
+            <div class="demo-left">
+                <div class="demo-history">
+                    <span class="cli-line">>> MICAH_OS v2.0.77 // READY</span>
+                    <br>
+                    <span class="cli-line cyan" id="echo-b">MICAH@LIVESAY:~$ profile</span>
+                    <span class="cli-line bright">> output in right panel</span>
+                </div>
+                <div class="demo-prompt">MICAH@LIVESAY:~$ _</div>
+                <div class="demo-cmds">
+                    <button class="demo-cmd-btn active" id="btn-b-profile"  onclick="switchB('profile')">profile</button>
+                    <button class="demo-cmd-btn"        id="btn-b-skills"   onclick="switchB('skills')">skills</button>
+                    <button class="demo-cmd-btn"        id="btn-b-contact"  onclick="switchB('contact')">contact</button>
+                    <button class="demo-cmd-btn"        id="btn-b-blog"     onclick="switchB('blog')">blog</button>
+                </div>
+            </div>
+
+            <div class="demo-right">
+                <div class="right-header" id="header-b">[ PROFILE.SYS ]</div>
+                <div class="right-content-wrap">
+                    <!-- Canvas sits above the lines and covers them during static burst -->
+                    <canvas class="static-canvas" id="static-canvas" width="120" height="90"></canvas>
+                    <div class="right-lines" id="lines-b"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<a class="back-link" href="index.html">&larr; back to main terminal</a>
+
+<script>
+
+    // ── Content data ────────────────────────────────────────────────────────
+
+    const CONTENT = {
+        profile: {
+            header: '[ PROFILE.SYS ]',
+            lines: [
+                { t:'MICAH LIVESAY',                          c:'pink'  },
+                { t:'Audio Engineer & Sound Designer',         c:''      },
+                { t:'',                                        c:''      },
+                { t:'I craft immersive sonic experiences —',   c:'dim'   },
+                { t:'from the microscopic click of a UI',      c:'dim'   },
+                { t:'to the texture of a cinematic world.',    c:'dim'   },
+                { t:'',                                        c:''      },
+                { t:'Status   Available for work',             c:''      },
+                { t:'Based    [Your City]',                    c:''      },
+            ]
+        },
+        skills: {
+            header: '[ SKILLS.SYS ]',
+            lines: [
+                { t:'[ DAW ]',                                 c:'pink'  },
+                { t:'  Pro Tools, Logic, Ableton, Reaper',     c:''      },
+                { t:'',                                        c:''      },
+                { t:'[ SOUND DESIGN ]',                        c:'pink'  },
+                { t:'  Foley, SFX, Synthesis, Field Rec.',     c:''      },
+                { t:'',                                        c:''      },
+                { t:'[ MIXING ]',                              c:'pink'  },
+                { t:'  Stereo, Dolby Atmos, Stem Mixing',      c:''      },
+                { t:'',                                        c:''      },
+                { t:'[ FORMATS ]',                             c:'pink'  },
+                { t:'  Film, TV, Games, Podcast, Commercial',  c:''      },
+            ]
+        },
+        contact: {
+            header: '[ CONTACT.EXE ]',
+            lines: [
+                { t:'EMAIL      your@email.com',               c:''      },
+                { t:'TWITTER    @yourhandle',                   c:''      },
+                { t:'LINKEDIN   linkedin.com/in/yourprofile',   c:''      },
+                { t:'',                                        c:''      },
+                { t:'// SEND A MESSAGE',                       c:'pink'  },
+                { t:'',                                        c:''      },
+                { t:'  NAME    > _______________',             c:'dim'   },
+                { t:'  EMAIL   > _______________',             c:'dim'   },
+                { t:'  MESSAGE > _______________',             c:'dim'   },
+                { t:'',                                        c:''      },
+                { t:'  [ TRANSMIT ]',                          c:'cyan'  },
+            ]
+        },
+        blog: {
+            header: '[ BLOG.LOG ]',
+            lines: [
+                { t:'2024-01-15  [SOUND DESIGN]',              c:'pink'  },
+                { t:'> The Physics of Foley',                  c:''      },
+                { t:'  Why surfaces matter more than objects.', c:'dim'   },
+                { t:'',                                        c:''      },
+                { t:'2024-01-03  [MIXING]',                    c:'pink'  },
+                { t:'> Mixing for Emotion, Not Perfection',    c:''      },
+                { t:'  A flat mix can feel completely dead.',   c:'dim'   },
+                { t:'',                                        c:''      },
+                { t:'2023-12-20  [WORKFLOW]',                  c:'pink'  },
+                { t:'> Building a Sound Library from Scratch', c:''      },
+                { t:'  How I tag, search, and never lose one.', c:'dim'  },
+            ]
+        },
+    };
+
+    // ── Shared utilities ─────────────────────────────────────────────────────
+
+    function typeLines(container, lines, interval = 42) {
+        container.innerHTML = '';
+        lines.forEach((line, i) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = 'content-line' + (line.c ? ' ' + line.c : '');
+                span.textContent = line.t;
+                container.appendChild(span);
+                container.appendChild(document.createElement('br'));
+            }, i * interval);
+        });
+    }
+
+    function setActiveBtn(prefix, cmd) {
+        ['profile','skills','contact','blog'].forEach(c => {
+            const btn = document.getElementById(`btn-${prefix}-${c}`);
+            if (btn) btn.classList.toggle('active', c === cmd);
+        });
+    }
+
+    function setAllBtns(prefix, disabled) {
+        ['profile','skills','contact','blog'].forEach(c => {
+            const btn = document.getElementById(`btn-${prefix}-${c}`);
+            if (btn) btn.disabled = disabled;
+        });
+    }
+
+    function updateEcho(id, cmd) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = `MICAH@LIVESAY:~$ ${cmd}`;
+    }
+
+    // ── OPTION A — Phosphor Decay ────────────────────────────────────────────
+
+    let lockA = false;
+    let currentA = 'profile';
+
+    function switchA(cmd) {
+        if (lockA || cmd === currentA) return;
+        lockA = true;
+        setAllBtns('a', true);
+
+        const lines  = document.getElementById('lines-a');
+        const header = document.getElementById('header-a');
+
+        updateEcho('echo-a', cmd);
+
+        // Phase 1: phosphor decay on old content (680ms)
+        lines.classList.add('phosphor-out');
+
+        setTimeout(() => {
+            lines.classList.remove('phosphor-out');
+
+            // Phase 2: swap header with a brief fade
+            header.style.opacity = '0';
+            setTimeout(() => {
+                header.textContent = CONTENT[cmd].header;
+                header.style.transition = 'opacity 0.18s';
+                header.style.opacity = '1';
+            }, 60);
+
+            // Phase 3: type new content in
+            typeLines(lines, CONTENT[cmd].lines, 42);
+
+            const done = CONTENT[cmd].lines.length * 42 + 300;
+            setTimeout(() => {
+                currentA = cmd;
+                setActiveBtn('a', cmd);
+                setAllBtns('a', false);
+                lockA = false;
+            }, done);
+
+        }, 700);
+    }
+
+    // ── OPTION B — Static Burst Clear ────────────────────────────────────────
+
+    let lockB = false;
+    let currentB = 'profile';
+
+    function switchB(cmd) {
+        if (lockB || cmd === currentB) return;
+        lockB = true;
+        setAllBtns('b', true);
+
+        const lines  = document.getElementById('lines-b');
+        const header = document.getElementById('header-b');
+        const canvas = document.getElementById('static-canvas');
+        const ctx    = canvas.getContext('2d');
+
+        updateEcho('echo-b', cmd);
+
+        // Phase 1: animate static noise (canvas covers the content)
+        canvas.style.display = 'block';
+        let frame = 0;
+        const noiseFrames = 20; // ~330ms at 60fps
+
+        function drawNoise() {
+            const w = canvas.width, h = canvas.height;
+            const img = ctx.createImageData(w, h);
+
+            for (let p = 0; p < img.data.length; p += 4) {
+                if (Math.random() > 0.42) {
+                    // Greenish static with occasional pink/cyan flicker
+                    const roll = Math.random();
+                    const brightness = Math.floor(Math.random() * 180 + 50);
+
+                    if (roll > 0.96) {
+                        // Rare pink pixel — chromatic aberration feel
+                        img.data[p]     = brightness;
+                        img.data[p + 1] = 0;
+                        img.data[p + 2] = Math.floor(brightness * 0.5);
+                    } else if (roll > 0.92) {
+                        // Rare cyan pixel
+                        img.data[p]     = 0;
+                        img.data[p + 1] = brightness;
+                        img.data[p + 2] = Math.floor(brightness * 0.8);
+                    } else {
+                        // Standard green static
+                        img.data[p]     = 0;
+                        img.data[p + 1] = brightness;
+                        img.data[p + 2] = Math.floor(brightness * 0.12);
+                    }
+                    img.data[p + 3] = Math.floor(Math.random() * 210 + 45);
+                }
+            }
+
+            ctx.putImageData(img, 0, 0);
+            frame++;
+
+            if (frame < noiseFrames) {
+                requestAnimationFrame(drawNoise);
+            } else {
+                // Phase 2: bright flash — white/green
+                ctx.fillStyle = 'rgba(180,255,200,0.88)';
+                ctx.fillRect(0, 0, w, h);
+
+                setTimeout(() => {
+                    // Phase 3: snap to black, kill canvas
+                    ctx.fillStyle = '#010802';
+                    ctx.fillRect(0, 0, w, h);
+
+                    setTimeout(() => {
+                        canvas.style.display = 'none';
+
+                        // Phase 4: swap header
+                        header.textContent = CONTENT[cmd].header;
+
+                        // Phase 5: type in new content
+                        typeLines(lines, CONTENT[cmd].lines, 42);
+
+                        const done = CONTENT[cmd].lines.length * 42 + 300;
+                        setTimeout(() => {
+                            currentB = cmd;
+                            setActiveBtn('b', cmd);
+                            setAllBtns('b', false);
+                            lockB = false;
+                        }, done);
+
+                    }, 40);
+                }, 70);
+            }
+        }
+
+        drawNoise();
+    }
+
+    // ── Init both demos ──────────────────────────────────────────────────────
+
+    window.addEventListener('load', () => {
+        typeLines(document.getElementById('lines-a'), CONTENT.profile.lines, 38);
+        typeLines(document.getElementById('lines-b'), CONTENT.profile.lines, 38);
+    });
+
+</script>
+</body>
+</html>

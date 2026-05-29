@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STATIC BURST CLEAR — DEMO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green:     #00ff41;
+            --green-dim: #00b32c;
+            --green-dark:#003d0f;
+            --pink:      #ff2d78;
+            --pink-dim:  #cc1a57;
+            --cyan:      #00ffcc;
+            --bg:        #010802;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        html, body {
+            width:100%; height:100%;
+            background: #000;
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--green);
+            overflow: hidden;
+        }
+
+        .page {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px 28px 16px;
+            gap: 14px;
+        }
+
+        .page-header { flex-shrink: 0; }
+
+        h1 {
+            color: var(--pink);
+            font-size: 13px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255,45,120,0.5);
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: var(--green-dim);
+            font-size: 11px;
+            opacity: 0.65;
+        }
+
+        /* ── SCREEN ── */
+        .demo-screen {
+            flex: 1;
+            min-height: 0;
+            background: var(--bg);
+            border: 1px solid #001a06;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            border-radius: 4px;
+            box-shadow: 0 0 40px rgba(0,255,65,0.04), 0 8px 40px rgba(0,0,0,0.7);
+        }
+
+        .demo-screen::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px, transparent 2px,
+                rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
+            );
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* ── LEFT PANE ── */
+        .left-pane {
+            width: 35%;
+            flex-shrink: 0;
+            padding: 1.5rem 1.8rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 14px;
+            line-height: 1.65;
+        }
+
+        .cli-history { flex: 1; overflow: hidden; }
+
+        .cli-line      { display:block; color:var(--green-dim); opacity:0.5; }
+        .cli-line.echo { color:var(--cyan); opacity:1; font-size:0.9em; text-shadow:0 0 5px rgba(0,255,204,0.5); }
+
+        .prompt {
+            color: var(--pink);
+            margin-top: 12px;
+            text-shadow: 0 0 8px rgba(255,45,120,0.5);
+        }
+
+        .cmd-buttons {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .cmd-btn {
+            background: transparent;
+            border: 1px solid var(--pink-dim);
+            color: var(--pink);
+            font-family: inherit;
+            font-size: 13px;
+            padding: 3px 12px;
+            cursor: pointer;
+            text-shadow: 0 0 5px rgba(255,45,120,0.4);
+            transition: background 0.1s, box-shadow 0.1s;
+        }
+        .cmd-btn:hover { background: rgba(255,45,120,0.1); box-shadow: 0 0 10px rgba(255,45,120,0.2); }
+        .cmd-btn.active { border-color:var(--pink); background:rgba(255,45,120,0.1); }
+        .cmd-btn:disabled { opacity:0.35; cursor:not-allowed; }
+
+        /* ── DIVIDER ── */
+        .pane-divider {
+            width: 1px;
+            flex-shrink: 0;
+            background: linear-gradient(to bottom, transparent 0%, var(--pink) 6%, var(--pink) 94%, transparent 100%);
+            box-shadow: 0 0 8px rgba(255,45,120,0.6), 0 0 20px rgba(255,45,120,0.2);
+        }
+
+        /* ── RIGHT PANE ── */
+        .right-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+            /* Required for absolute canvas to cover this whole area */
+            position: relative;
+        }
+
+        .right-header {
+            padding: 1.2rem 1.8rem 0.7rem;
+            color: var(--pink);
+            font-size: 14px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255,45,120,0.2);
+            text-shadow: 0 0 8px rgba(255,45,120,0.6), 0 0 20px rgba(255,45,120,0.2);
+            flex-shrink: 0;
+        }
+
+        /* Static canvas — covers the FULL right pane including header */
+        #static-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            opacity: 0;
+            z-index: 20;
+            /* Opaque background so transparent noise pixels don't show text through */
+            background: var(--bg);
+        }
+
+        /* Content lines */
+        #right-lines {
+            padding: 1rem 1.8rem 1.5rem;
+            overflow: hidden;
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .content-line      { display:block; color:var(--green); text-shadow:0 0 5px rgba(0,255,65,0.4); }
+        .content-line.pink { color:var(--pink); text-shadow:0 0 6px rgba(255,45,120,0.45); }
+        .content-line.dim  { color:var(--green-dim); opacity:0.65; }
+        .content-line.cyan { color:var(--cyan); text-shadow:0 0 5px rgba(0,255,204,0.4); }
+
+        /* Footer */
+        .page-footer {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-link { color:var(--green-dim); font-size:11px; opacity:0.55; text-decoration:none; }
+        .back-link:hover { opacity:1; }
+        .status { color:var(--green-dim); font-size:11px; opacity:0.4; }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <div class="page-header">
+        <h1>// STATIC BURST CLEAR — DEMO</h1>
+        <p class="subtitle">Static glitches in and blocks out the text — including the header. New content prints sequentially.</p>
+    </div>
+
+    <div class="demo-screen">
+
+        <div class="left-pane">
+            <div class="cli-history">
+                <span class="cli-line">>> MICAH_OS v2.0.77 // READY</span>
+                <br>
+                <span class="cli-line echo" id="cmd-echo">MICAH@LIVESAY:~$ profile</span>
+            </div>
+            <div class="prompt">MICAH@LIVESAY:~$ _</div>
+            <div class="cmd-buttons">
+                <button class="cmd-btn active" id="btn-profile"   onclick="run('profile')">profile</button>
+                <button class="cmd-btn"        id="btn-skills"    onclick="run('skills')">skills</button>
+                <button class="cmd-btn"        id="btn-portfolio" onclick="run('portfolio')">portfolio</button>
+                <button class="cmd-btn"        id="btn-blog"      onclick="run('blog')">blog</button>
+                <button class="cmd-btn"        id="btn-contact"   onclick="run('contact')">contact</button>
+            </div>
+        </div>
+
+        <div class="pane-divider"></div>
+
+        <div class="right-pane">
+            <!-- Canvas covers this entire div including the header -->
+            <canvas id="static-canvas"></canvas>
+
+            <div class="right-header" id="right-header">[ PROFILE.SYS ]</div>
+            <div id="right-lines"></div>
+        </div>
+
+    </div>
+
+    <div class="page-footer">
+        <a class="back-link" href="index.html">&larr; back to main terminal</a>
+        <span class="status" id="status">ready</span>
+    </div>
+
+</div>
+<script>
+
+    // ── Content ───────────────────────────────────────────────────────────────
+
+    const CONTENT = {
+        profile: {
+            header: '[ PROFILE.SYS ]',
+            lines: [
+                { t:'MICAH LIVESAY',                              c:'pink' },
+                { t:'Audio Engineer & Sound Designer',             c:''    },
+                { t:'',                                            c:''    },
+                { t:'I craft immersive sonic experiences —',       c:'dim' },
+                { t:'from the microscopic click of a UI to the',   c:'dim' },
+                { t:'expansive texture of a cinematic world.',     c:'dim' },
+                { t:'',                                            c:''    },
+                { t:'Sound is not decoration.',                    c:''    },
+                { t:'Sound is the feeling beneath the feeling.',   c:''    },
+                { t:'',                                            c:''    },
+                { t:'Status   Available for work',                 c:''    },
+            ]
+        },
+        skills: {
+            header: '[ SKILLS.SYS ]',
+            lines: [
+                { t:'[ DAW ]',                                     c:'pink' },
+                { t:'  Pro Tools, Logic Pro, Ableton, Reaper',     c:''    },
+                { t:'',                                            c:''    },
+                { t:'[ SOUND DESIGN ]',                            c:'pink' },
+                { t:'  Foley, SFX, Synthesis, Field Recording',    c:''    },
+                { t:'',                                            c:''    },
+                { t:'[ MIXING ]',                                  c:'pink' },
+                { t:'  Stereo, Immersive (Dolby Atmos), Stems',    c:''    },
+                { t:'',                                            c:''    },
+                { t:'[ FORMATS ]',                                 c:'pink' },
+                { t:'  Film, TV, Games, Podcast, Commercial',      c:''    },
+            ]
+        },
+        portfolio: {
+            header: '[ PORTFOLIO.DAT ]',
+            lines: [
+                { t:'[001] Project Title',                         c:'cyan' },
+                { t:'      Sound Design  ·  Client  ·  2024',      c:'dim'  },
+                { t:'      Short description of your role.',       c:'dim'  },
+                { t:'',                                            c:''     },
+                { t:'[002] Project Title',                         c:'cyan' },
+                { t:'      Audio Engineering  ·  Client  ·  2024', c:'dim'  },
+                { t:'      Short description of your role.',       c:'dim'  },
+                { t:'',                                            c:''     },
+                { t:'[003] Project Title',                         c:'cyan' },
+                { t:'      Music Production  ·  Client  ·  2023',  c:'dim'  },
+                { t:'      Short description of your role.',       c:'dim'  },
+            ]
+        },
+        blog: {
+            header: '[ BLOG.LOG ]',
+            lines: [
+                { t:'2024-01-15  [SOUND DESIGN]',                  c:'pink' },
+                { t:'> The Physics of Foley',                      c:''    },
+                { t:'  Why surfaces matter more than objects.',     c:'dim' },
+                { t:'',                                            c:''    },
+                { t:'2024-01-03  [MIXING]',                        c:'pink' },
+                { t:'> Mixing for Emotion, Not Perfection',        c:''    },
+                { t:'  A flat mix can feel completely dead.',       c:'dim' },
+                { t:'',                                            c:''    },
+                { t:'2023-12-20  [WORKFLOW]',                      c:'pink' },
+                { t:'> Building a Sound Library from Scratch',     c:''    },
+                { t:'  How I tag, search, and never lose a sound.', c:'dim' },
+            ]
+        },
+        contact: {
+            header: '[ CONTACT.EXE ]',
+            lines: [
+                { t:'EMAIL      your@email.com',                   c:''    },
+                { t:'TWITTER    @yourhandle',                      c:''    },
+                { t:'LINKEDIN   linkedin.com/in/yourprofile',      c:''    },
+                { t:'',                                            c:''    },
+                { t:'// SEND A MESSAGE',                           c:'pink' },
+                { t:'',                                            c:''    },
+                { t:'  NAME    > _______________',                 c:'dim' },
+                { t:'  EMAIL   > _______________',                 c:'dim' },
+                { t:'  MESSAGE > _______________',                 c:'dim' },
+                { t:'',                                            c:''    },
+                { t:'  [ TRANSMIT ]',                              c:'cyan' },
+            ]
+        },
+    };
+
+    // ── Refs ──────────────────────────────────────────────────────────────────
+
+    const canvas = document.getElementById('static-canvas');
+    const ctx    = canvas.getContext('2d');
+    const header = document.getElementById('right-header');
+    const lines  = document.getElementById('right-lines');
+    const status = document.getElementById('status');
+
+    let current = 'profile';
+    let busy    = false;
+
+    // ── Typewriter — no fade, each line just appears ──────────────────────────
+
+    function typeLines(data, interval = 44) {
+        lines.innerHTML = '';
+        data.forEach((line, i) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = 'content-line' + (line.c ? ' ' + line.c : '');
+                span.textContent = line.t;
+                lines.appendChild(span);
+                lines.appendChild(document.createElement('br'));
+            }, i * interval);
+        });
+        return data.length * interval;
+    }
+
+    // ── Static noise frame ────────────────────────────────────────────────────
+
+    function drawNoise() {
+        const w = canvas.width, h = canvas.height;
+        const img = ctx.createImageData(w, h);
+        const d   = img.data;
+
+        // Per-row brightness variation — subtle horizontal banding
+        const rowMod = new Float32Array(h);
+        for (let y = 0; y < h; y++) {
+            rowMod[y] = 0.6 + Math.random() * 0.8;
+        }
+
+        for (let y = 0; y < h; y++) {
+            const rm = rowMod[y];
+            for (let x = 0; x < w; x++) {
+                const p = (y * w + x) * 4;
+                const v = Math.random();
+                const b = Math.floor(v * 255 * rm);
+
+                if (v > 0.987) {
+                    // White spark
+                    d[p] = d[p+1] = d[p+2] = 230;
+                    d[p+3] = 255;
+                } else if (v > 0.968) {
+                    // Pink aberration
+                    d[p]   = Math.floor(b * 0.9);
+                    d[p+1] = 0;
+                    d[p+2] = Math.floor(b * 0.6);
+                    d[p+3] = 255;
+                } else if (v > 0.950) {
+                    // Cyan aberration
+                    d[p]   = 0;
+                    d[p+1] = Math.floor(b * 0.9);
+                    d[p+2] = Math.floor(b * 0.8);
+                    d[p+3] = 255;
+                } else {
+                    // Green noise — full alpha so canvas bg shows through sparse areas
+                    const g = Math.floor(Math.random() * 255 * rm);
+                    d[p]   = 0;
+                    d[p+1] = g;
+                    d[p+2] = Math.floor(g * 0.08);
+                    d[p+3] = 255;
+                }
+            }
+        }
+
+        ctx.putImageData(img, 0, 0);
+
+        // Occasional horizontal interference line
+        if (Math.random() > 0.5) {
+            const ly = Math.floor(Math.random() * h);
+            ctx.fillStyle = `rgba(0,255,65,${Math.random() * 0.25})`;
+            ctx.fillRect(0, ly, w, 1 + Math.floor(Math.random() * 2));
+        }
+    }
+
+    // ── Main switch ───────────────────────────────────────────────────────────
+
+    function run(cmd) {
+        if (busy || cmd === current) return;
+        busy = true;
+
+        // Update echo + buttons
+        document.getElementById('cmd-echo').textContent = `MICAH@LIVESAY:~$ ${cmd}`;
+        document.querySelectorAll('.cmd-btn').forEach(b => {
+            b.classList.toggle('active', b.id === `btn-${cmd}`);
+            b.disabled = true;
+        });
+        status.textContent = 'switching...';
+
+        // Size canvas to the full right pane (covers header + content)
+        const pane = canvas.parentElement;
+        const rect = pane.getBoundingClientRect();
+        canvas.width  = Math.ceil(rect.width);
+        canvas.height = Math.ceil(rect.height);
+
+        // Canvas starts hidden, no CSS transition — we control visibility per-frame
+        canvas.style.transition = 'none';
+        canvas.style.opacity    = '0';
+        canvas.style.display    = 'block';
+
+        let frame = 0;
+        const glitchFrames = 9;   // frames where static randomly flickers on/off
+        const holdFrames   = 14;  // frames at full static before flash
+        const total        = glitchFrames + holdFrames;
+        let swapped        = false;
+
+        function noiseLoop() {
+            if (frame < glitchFrames) {
+                // Glitch-in: abrupt on/off with increasing probability each frame.
+                // At frame 0 almost always hidden, at frame 8 always visible.
+                // No CSS transition — hard binary cuts only.
+                const prob    = frame / (glitchFrames - 1);
+                const visible = Math.random() < prob;
+                canvas.style.opacity = visible ? '1' : '0';
+                drawNoise();
+            } else {
+                // Full static — locks in
+                canvas.style.opacity = '1';
+                drawNoise();
+
+                // Swap header and clear old content on first full-static frame
+                // (invisible to user — static covers everything)
+                if (!swapped) {
+                    swapped = true;
+                    header.textContent = CONTENT[cmd].header;
+                    lines.innerHTML    = '';
+                }
+            }
+
+            frame++;
+            if (frame < total) {
+                requestAnimationFrame(noiseLoop);
+            } else {
+                doFlash();
+            }
+        }
+
+        requestAnimationFrame(noiseLoop);
+
+        // ── Flash ─────────────────────────────────────────────────────────────
+        function doFlash() {
+            ctx.fillStyle = 'rgba(195,255,210,0.9)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            setTimeout(doSnap, 60);
+        }
+
+        // ── Snap to dark ──────────────────────────────────────────────────────
+        function doSnap() {
+            ctx.fillStyle = '#010802';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            setTimeout(showContent, 40);
+        }
+
+        // ── Reveal new content ────────────────────────────────────────────────
+        function showContent() {
+            // Kill canvas — new header is already in place underneath
+            canvas.style.display = 'none';
+            canvas.style.opacity = '0';
+
+            // Type new content — no fade, lines just appear sequentially
+            const writeDuration = typeLines(CONTENT[cmd].lines, 44);
+
+            setTimeout(() => {
+                current = cmd;
+                document.querySelectorAll('.cmd-btn').forEach(b => { b.disabled = false; });
+                status.textContent = 'ready';
+                busy = false;
+            }, writeDuration + 200);
+        }
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+
+    window.addEventListener('load', () => {
+        typeLines(CONTENT.profile.lines, 38);
+    });
+
+</script>
+</body>
+</html>

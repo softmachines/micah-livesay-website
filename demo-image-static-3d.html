@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMAGE IN STATIC — 3D — DEMO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green:     #00ff41;
+            --green-dim: #00b32c;
+            --green-dark:#003d0f;
+            --pink:      #ff2d78;
+            --pink-dim:  #cc1a57;
+            --cyan:      #00ffcc;
+            --bg:        #010802;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        html, body {
+            width:100%; height:100%;
+            background:#000;
+            font-family:'Share Tech Mono', monospace;
+            color:var(--green);
+            overflow:hidden;
+        }
+
+        .page {
+            display:flex;
+            flex-direction:column;
+            height:100vh;
+            padding:20px 28px 16px;
+            gap:14px;
+        }
+
+        .page-header { flex-shrink:0; }
+
+        h1 {
+            color:var(--pink);
+            font-size:13px;
+            letter-spacing:2px;
+            text-shadow:0 0 10px rgba(255,45,120,0.5);
+            margin-bottom:4px;
+        }
+
+        .subtitle {
+            color:var(--green-dim);
+            font-size:11px;
+            opacity:0.65;
+        }
+
+        .canvas-wrap {
+            flex:1;
+            min-height:0;
+            position:relative;
+            border:1px solid #001a06;
+            border-radius:4px;
+            overflow:hidden;
+            box-shadow:0 0 40px rgba(0,255,65,0.04), 0 8px 40px rgba(0,0,0,0.7);
+            cursor:pointer;
+        }
+
+        .canvas-wrap::after {
+            content:'';
+            position:absolute; inset:0;
+            background:repeating-linear-gradient(
+                to bottom,
+                transparent 0px, transparent 2px,
+                rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
+            );
+            pointer-events:none;
+            z-index:10;
+        }
+
+        #main-canvas { width:100%; height:100%; display:block; }
+
+        .drop-hint {
+            position:absolute;
+            bottom:16px; right:16px;
+            color:var(--green-dim);
+            font-size:11px; opacity:0.4;
+            z-index:5; pointer-events:none;
+        }
+
+        .canvas-wrap.drag-over {
+            border-color:var(--pink);
+            box-shadow:0 0 30px rgba(255,45,120,0.2);
+        }
+
+        .controls {
+            flex-shrink:0;
+            display:flex;
+            align-items:center;
+            gap:16px;
+            flex-wrap:wrap;
+        }
+
+        .ctrl-group { display:flex; align-items:center; gap:10px; }
+
+        .ctrl-label {
+            color:var(--green-dim);
+            font-size:11px; opacity:0.7;
+            white-space:nowrap;
+        }
+
+        input[type=range] {
+            -webkit-appearance:none;
+            width:160px; height:2px;
+            background:var(--green-dark);
+            outline:none; cursor:pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance:none;
+            width:10px; height:10px;
+            border-radius:50%;
+            background:var(--green);
+            box-shadow:0 0 6px rgba(0,255,65,0.7);
+            cursor:pointer;
+        }
+
+        .btn {
+            background:transparent;
+            border:1px solid var(--pink-dim);
+            color:var(--pink);
+            font-family:inherit;
+            font-size:11px;
+            padding:3px 12px;
+            cursor:pointer;
+            text-shadow:0 0 5px rgba(255,45,120,0.4);
+            transition:background 0.1s, box-shadow 0.1s;
+            white-space:nowrap;
+        }
+        .btn:hover { background:rgba(255,45,120,0.1); box-shadow:0 0 10px rgba(255,45,120,0.2); }
+        .btn.active { border-color:var(--pink); background:rgba(255,45,120,0.12); }
+
+        #file-input { display:none; }
+
+        .separator {
+            width:1px; height:18px;
+            background:var(--green-dark); opacity:0.4;
+            flex-shrink:0;
+        }
+
+        .page-footer {
+            flex-shrink:0;
+            display:flex; align-items:center; gap:20px;
+        }
+
+        .back-link { color:var(--green-dim); font-size:11px; opacity:0.55; text-decoration:none; }
+        .back-link:hover { opacity:1; }
+        .info { color:var(--green-dim); font-size:11px; opacity:0.4; }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <div class="page-header">
+        <h1>// IMAGE IN STATIC — 3D — DEMO</h1>
+        <p class="subtitle">Bump mapping — image luminance becomes a height map. Directional lighting sculpts the static surface. Light rotates slowly.</p>
+    </div>
+
+    <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="main-canvas"></canvas>
+        <div class="drop-hint">drag & drop an image or video</div>
+    </div>
+
+    <div class="controls">
+        <div class="ctrl-group">
+            <span class="ctrl-label">NOISE ONLY</span>
+            <input type="range" id="influence" min="0" max="100" value="70">
+            <span class="ctrl-label">IMAGE</span>
+        </div>
+
+        <div class="separator"></div>
+
+        <div class="ctrl-group">
+            <span class="ctrl-label">DEPTH</span>
+            <input type="range" id="relief" min="1" max="20" value="7">
+            <span class="ctrl-label">STRONG</span>
+        </div>
+
+        <div class="separator"></div>
+
+        <button class="btn" id="btn-emerge"   onclick="startEmerge()">[ EMERGE ]</button>
+        <button class="btn" id="btn-dissolve" onclick="startDissolve()">[ DISSOLVE ]</button>
+        <button class="btn" id="btn-pulse"    onclick="togglePulse()">[ PULSE ]</button>
+        <button class="btn" id="btn-spin"     onclick="toggleSpin()">[ ROTATE LIGHT ]</button>
+
+        <div class="separator"></div>
+
+        <button class="btn" onclick="useDefaultImage()">[ DEFAULT ]</button>
+        <button class="btn" onclick="document.getElementById('file-input').click()">[ LOAD IMAGE ]</button>
+        <button class="btn" onclick="loadVideo()">[ LOAD VIDEO ]</button>
+        <input type="file" id="file-input" accept="image/*,video/*" onchange="handleFile(this)">
+    </div>
+
+    <div class="page-footer">
+        <a class="back-link" href="demo-image-static.html">&larr; flat version</a>
+        <a class="back-link" href="index.html" style="margin-left:8px">&larr; terminal</a>
+        <span class="info" id="info">drag in your own photo or video</span>
+    </div>
+
+</div>
+<script>
+
+    // ── Canvas refs ───────────────────────────────────────────────────────────
+
+    const mainCanvas = document.getElementById('main-canvas');
+    const ctx        = mainCanvas.getContext('2d');
+
+    // Source: holds the image/video frame at canvas resolution
+    const srcCanvas = document.createElement('canvas');
+    const srcCtx    = srcCanvas.getContext('2d');
+
+    // Normals cache — recomputed when source changes
+    let normalsCache  = null;
+    let normalsDirty  = true;
+    let normalW = 0, normalH = 0;
+
+    // State
+    let influence  = 0.7;
+    let reliefStr  = 7.0;
+    let spinning   = true;   // light rotation on by default
+    let animating  = false;
+    let pulsing    = false;
+    let animDir    = 1;
+    let pulseT     = 0;
+    let videoSrc   = null;
+    let sourceBitmap = null;
+
+    // ── Resize ────────────────────────────────────────────────────────────────
+
+    function resize() {
+        const wrap = document.getElementById('canvas-wrap');
+        const r    = wrap.getBoundingClientRect();
+        mainCanvas.width  = Math.ceil(r.width);
+        mainCanvas.height = Math.ceil(r.height);
+        srcCanvas.width   = mainCanvas.width;
+        srcCanvas.height  = mainCanvas.height;
+        normalsDirty = true;
+        redrawSource();
+    }
+    window.addEventListener('resize', resize);
+
+    // ── Source image ──────────────────────────────────────────────────────────
+
+    function redrawSource() {
+        if (!sourceBitmap) {
+            drawDefaultImage();
+        } else {
+            srcCtx.clearRect(0, 0, srcCanvas.width, srcCanvas.height);
+            srcCtx.drawImage(sourceBitmap, 0, 0, srcCanvas.width, srcCanvas.height);
+        }
+        normalsDirty = true;
+    }
+
+    function drawDefaultImage() {
+        const w = srcCanvas.width, h = srcCanvas.height;
+        srcCtx.clearRect(0, 0, w, h);
+        srcCtx.fillStyle = '#000';
+        srcCtx.fillRect(0, 0, w, h);
+
+        srcCtx.fillStyle = '#fff';
+        srcCtx.textAlign = 'center';
+        srcCtx.textBaseline = 'middle';
+
+        const size = Math.floor(Math.min(w, h) * 0.12);
+        srcCtx.font = `bold ${size}px Share Tech Mono, monospace`;
+        srcCtx.fillText('MICAH',   w * 0.5, h * 0.42);
+        srcCtx.fillText('LIVESAY', w * 0.5, h * 0.58);
+
+        // Soft blur pass for smoother height map normals
+        srcCtx.filter = 'blur(10px)';
+        srcCtx.globalAlpha = 0.45;
+        srcCtx.fillText('MICAH',   w * 0.5, h * 0.42);
+        srcCtx.fillText('LIVESAY', w * 0.5, h * 0.58);
+        srcCtx.filter = 'none';
+        srcCtx.globalAlpha = 1;
+    }
+
+    function useDefaultImage() {
+        sourceBitmap = null;
+        videoSrc     = null;
+        redrawSource();
+        document.getElementById('info').textContent = 'default image';
+    }
+
+    // ── File / drop loading ───────────────────────────────────────────────────
+
+    function handleFile(input) {
+        const f = input.files[0];
+        if (f) loadFileObject(f);
+    }
+
+    function loadFileObject(file) {
+        videoSrc = null;
+        if (file.type.startsWith('video/')) { loadVideoFile(file); return; }
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            createImageBitmap(img).then(bm => {
+                sourceBitmap = bm;
+                redrawSource();
+                document.getElementById('info').textContent = file.name;
+            });
+        };
+        img.src = url;
+    }
+
+    function loadVideoFile(file) {
+        const vid = document.createElement('video');
+        vid.src = URL.createObjectURL(file);
+        vid.loop = true; vid.muted = true;
+        vid.autoplay = true; vid.playsInline = true;
+        vid.play().catch(() => {});
+        videoSrc = vid; sourceBitmap = null;
+        document.getElementById('info').textContent = file.name + ' — live video';
+    }
+
+    function loadVideo() {
+        const i = document.createElement('input');
+        i.type = 'file'; i.accept = 'video/*';
+        i.onchange = () => { if (i.files[0]) loadVideoFile(i.files[0]); };
+        i.click();
+    }
+
+    const wrap = document.getElementById('canvas-wrap');
+    wrap.addEventListener('dragover',  e => { e.preventDefault(); wrap.classList.add('drag-over'); });
+    wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
+    wrap.addEventListener('drop', e => {
+        e.preventDefault();
+        wrap.classList.remove('drag-over');
+        if (e.dataTransfer.files[0]) loadFileObject(e.dataTransfer.files[0]);
+    });
+
+    // ── Normal map ────────────────────────────────────────────────────────────
+    // Treats image luminance as a height field.
+    // Each pixel's surface normal is derived from adjacent height differences.
+
+    function buildNormals(srcData, w, h, strength) {
+        const n = new Float32Array(w * h * 3);
+
+        function luma(x, y) {
+            x = Math.max(0, Math.min(w - 1, x));
+            y = Math.max(0, Math.min(h - 1, y));
+            const p = (y * w + x) * 4;
+            return (srcData[p] * 0.299 + srcData[p+1] * 0.587 + srcData[p+2] * 0.114) / 255;
+        }
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                // Sobel kernel — better edge detection than simple diff
+                const tl = luma(x-1, y-1), t  = luma(x, y-1), tr = luma(x+1, y-1);
+                const l  = luma(x-1, y),                        r  = luma(x+1, y);
+                const bl = luma(x-1, y+1), b  = luma(x, y+1), br = luma(x+1, y+1);
+
+                let nx = -(tl + 2*l + bl - tr - 2*r - br) * strength;
+                let ny = -(tl + 2*t + tr - bl - 2*b - br) * strength;
+                let nz = 1.0;
+
+                const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+                const i = (y * w + x) * 3;
+                n[i]   = nx / len;
+                n[i+1] = ny / len;
+                n[i+2] = nz / len;
+            }
+        }
+
+        return n;
+    }
+
+    // ── Frame render ──────────────────────────────────────────────────────────
+
+    let frameCount = 0;
+
+    function drawFrame(inf) {
+        const w = mainCanvas.width, h = mainCanvas.height;
+
+        // Update source from video each frame
+        if (videoSrc && videoSrc.readyState >= 2) {
+            srcCtx.drawImage(videoSrc, 0, 0, w, h);
+            // Recompute normals every 3 frames for video (balance quality vs cost)
+            if (frameCount % 3 === 0) normalsDirty = true;
+        }
+
+        // Rebuild normal map if source changed
+        if (normalsDirty || normalsCache === null || normalW !== w || normalH !== h) {
+            const srcData = srcCtx.getImageData(0, 0, w, h).data;
+            normalsCache  = buildNormals(srcData, w, h, reliefStr);
+            normalsDirty  = false;
+            normalW = w; normalH = h;
+        }
+
+        const srcData = srcCtx.getImageData(0, 0, w, h).data;
+        const out     = ctx.createImageData(w, h);
+        const d       = out.data;
+        const nm      = normalsCache;
+
+        // Slowly rotating light direction — orbit in XZ plane
+        const t   = Date.now() * 0.00025;
+        const lx  = Math.cos(t) * 0.75;
+        const ly  = -0.55;                  // slightly from above
+        const lz  = Math.sin(t) * 0.75 + 0.5;
+        // Normalise light
+        const ll  = Math.sqrt(lx*lx + ly*ly + lz*lz);
+        const lxn = lx/ll, lyn = ly/ll, lzn = lz/ll;
+
+        // Specular: viewer direction (straight ahead)
+        const vz = 1.0;
+
+        // Per-row horizontal banding (CRT interference)
+        const rowMod = new Float32Array(h);
+        for (let y = 0; y < h; y++) rowMod[y] = 0.72 + Math.random() * 0.56;
+
+        for (let y = 0; y < h; y++) {
+            const rm = rowMod[y];
+
+            for (let x = 0; x < w; x++) {
+                const p = (y * w + x) * 4;
+
+                // Source luminance at this pixel
+                const luma = (srcData[p] * 0.299 + srcData[p+1] * 0.587 + srcData[p+2] * 0.114) / 255;
+
+                // Depth: blend image luma with random noise (inf controls blend)
+                const depth = luma * inf + Math.random() * (1 - inf);
+
+                // ── Bump map lighting ─────────────────────────────────────────
+                const ni  = (y * w + x) * 3;
+                const nx_ = nm[ni], ny_ = nm[ni+1], nz_ = nm[ni+2];
+
+                // Diffuse: N · L
+                const diff = Math.max(0, nx_*lxn + ny_*lyn + nz_*lzn);
+
+                // Specular: Blinn-Phong halfway vector
+                const hx = lxn, hy = lyn, hz = (lzn + vz) * 0.5;
+                const hl = Math.sqrt(hx*hx + hy*hy + hz*hz);
+                const spec = Math.pow(Math.max(0, (nx_*(hx/hl) + ny_*(hy/hl) + nz_*(hz/hl))), 18);
+
+                // Ambient + diffuse + specular
+                const ambient = 0.12;
+                const light   = ambient + diff * 0.75 + spec * 0.35;
+
+                // ── Noise brightness ──────────────────────────────────────────
+                // Random variation + depth + lighting
+                const noiseRand = 0.45 + Math.random() * 0.55;
+                const bright    = Math.min(1, depth * noiseRand * rm * light * 1.4);
+
+                // ── Chromatic depth separation ────────────────────────────────
+                // Near (bright) = warmer green-yellow
+                // Far  (dark)   = cooler teal/cyan
+                // This colour shift reinforces the depth separation visually
+                const near    = depth * inf;   // 0 = far, 1 = near
+                const roll    = Math.random();
+
+                if (roll > 0.989) {
+                    // Hot white spark — concentrated in bright/near areas
+                    const sp = Math.min(1, bright * 1.6);
+                    d[p] = d[p+1] = d[p+2] = Math.floor(sp * 240);
+                    d[p+3] = 255;
+                } else if (roll > 0.972) {
+                    // Pink/magenta — scattered aberration
+                    const b = Math.floor(bright * 230);
+                    d[p]   = b;
+                    d[p+1] = 0;
+                    d[p+2] = Math.floor(b * 0.5);
+                    d[p+3] = 255;
+                } else if (roll > 0.955) {
+                    // Cyan — far-depth aberration
+                    d[p]   = 0;
+                    d[p+1] = Math.floor(bright * 210);
+                    d[p+2] = Math.floor(bright * 180);
+                    d[p+3] = 255;
+                } else {
+                    // Primary noise — colour shifted by depth
+                    // Near: green (0, g, 0)
+                    // Far:  teal (0, g, g*0.4)
+                    const g  = Math.floor(bright * 255);
+                    const bv = Math.floor(g * (0.04 + (1 - near) * 0.28)); // blue creeps in for far pixels
+                    d[p]   = 0;
+                    d[p+1] = g;
+                    d[p+2] = bv;
+                    d[p+3] = 255;
+                }
+            }
+        }
+
+        ctx.putImageData(out, 0, 0);
+
+        // Occasional horizontal interference line
+        if (Math.random() > 0.52) {
+            const ly2 = Math.floor(Math.random() * h);
+            ctx.fillStyle = `rgba(0,255,65,${Math.random() * 0.22})`;
+            ctx.fillRect(0, ly2, w, 1 + Math.floor(Math.random() * 2));
+        }
+
+        frameCount++;
+    }
+
+    // ── Animation ─────────────────────────────────────────────────────────────
+
+    const SPEED = 0.010;
+
+    function startEmerge() {
+        animating = true; pulsing = false;
+        animDir = 1;
+        if (influence > 0.05) influence = 0;
+        document.getElementById('btn-pulse').classList.remove('active');
+    }
+
+    function startDissolve() {
+        animating = true; pulsing = false;
+        animDir = -1;
+        if (influence < 0.95) influence = 1;
+        document.getElementById('btn-pulse').classList.remove('active');
+    }
+
+    function togglePulse() {
+        pulsing = !pulsing; animating = false;
+        document.getElementById('btn-pulse').classList.toggle('active', pulsing);
+    }
+
+    function toggleSpin() {
+        spinning = !spinning;
+        document.getElementById('btn-spin').classList.toggle('active', spinning);
+        // If spinning off, freeze light angle in current position
+    }
+
+    function tickAnim() {
+        if (animating) {
+            influence = Math.max(0, Math.min(1, influence + animDir * SPEED));
+            if (influence >= 1 || influence <= 0) animating = false;
+            document.getElementById('influence').value = Math.round(influence * 100);
+        }
+        if (pulsing) {
+            pulseT += 0.007;
+            influence = 0.28 + Math.sin(pulseT) * 0.36 + Math.sin(pulseT * 2.7) * 0.08;
+            influence = Math.max(0, Math.min(1, influence));
+            document.getElementById('influence').value = Math.round(influence * 100);
+        }
+    }
+
+    // ── Render loop ───────────────────────────────────────────────────────────
+
+    function loop() {
+        tickAnim();
+        drawFrame(influence);
+        requestAnimationFrame(loop);
+    }
+
+    // ── Controls wiring ───────────────────────────────────────────────────────
+
+    document.getElementById('influence').addEventListener('input', function() {
+        influence = this.value / 100;
+        animating = false; pulsing = false;
+        document.getElementById('btn-pulse').classList.remove('active');
+    });
+
+    document.getElementById('relief').addEventListener('input', function() {
+        reliefStr    = parseFloat(this.value);
+        normalsDirty = true;
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    // Activate spin button by default
+    document.getElementById('btn-spin').classList.add('active');
+
+    window.addEventListener('load', () => {
+        resize();
+        loop();
+        setTimeout(() => startEmerge(), 400);
+    });
+
+</script>
+</body>
+</html>

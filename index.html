@@ -13,6 +13,8 @@
 
     <!-- SPLASH: shown before boot, dismissed by any key or click -->
     <div id="splash" class="splash-screen">
+        <!-- Image-in-static background — canvas behind the text -->
+        <canvas id="splash-canvas"></canvas>
         <div class="splash-content">
             <div class="splash-sysid">
                 <span>MICAH_OS  v2.0.77</span>
@@ -33,6 +35,8 @@
     <div class="crt-wrapper">
         <div class="scanlines"></div>
         <div class="screen-glitch-overlay" id="glitch-overlay"></div>
+        <!-- Glass surface overlay: reflection highlight + edge depth -->
+        <div class="crt-glass"></div>
 
         <div class="pane-container" id="pane-container">
 
@@ -50,6 +54,8 @@
 
             <!-- RIGHT: command output -->
             <div class="right-pane" id="right-pane">
+                <!-- Static burst canvas — covers full right pane during content switch -->
+                <canvas id="switch-canvas"></canvas>
                 <div class="right-header" id="right-header"></div>
                 <div class="right-content" id="right-content"></div>
             </div>

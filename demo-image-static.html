@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMAGE IN STATIC — DEMO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green:     #00ff41;
+            --green-dim: #00b32c;
+            --green-dark:#003d0f;
+            --pink:      #ff2d78;
+            --pink-dim:  #cc1a57;
+            --cyan:      #00ffcc;
+            --bg:        #010802;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        html, body {
+            width:100%; height:100%;
+            background:#000;
+            font-family:'Share Tech Mono', monospace;
+            color:var(--green);
+            overflow:hidden;
+        }
+
+        .page {
+            display:flex;
+            flex-direction:column;
+            height:100vh;
+            padding:20px 28px 16px;
+            gap:14px;
+        }
+
+        /* ── HEADER ── */
+        .page-header { flex-shrink:0; }
+
+        h1 {
+            color:var(--pink);
+            font-size:13px;
+            letter-spacing:2px;
+            text-shadow:0 0 10px rgba(255,45,120,0.5);
+            margin-bottom:4px;
+        }
+
+        .subtitle {
+            color:var(--green-dim);
+            font-size:11px;
+            opacity:0.65;
+        }
+
+        /* ── CANVAS AREA ── */
+        .canvas-wrap {
+            flex:1;
+            min-height:0;
+            position:relative;
+            border:1px solid #001a06;
+            border-radius:4px;
+            overflow:hidden;
+            box-shadow:0 0 40px rgba(0,255,65,0.04), 0 8px 40px rgba(0,0,0,0.7);
+            cursor:pointer;
+        }
+
+        /* Scanlines overlay */
+        .canvas-wrap::after {
+            content:'';
+            position:absolute;inset:0;
+            background:repeating-linear-gradient(
+                to bottom,
+                transparent 0px,transparent 2px,
+                rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 4px
+            );
+            pointer-events:none;
+            z-index:10;
+        }
+
+        #main-canvas {
+            width:100%;
+            height:100%;
+            display:block;
+        }
+
+        /* Drop zone hint */
+        .drop-hint {
+            position:absolute;
+            bottom:16px;
+            right:16px;
+            color:var(--green-dim);
+            font-size:11px;
+            opacity:0.4;
+            z-index:5;
+            pointer-events:none;
+        }
+
+        .canvas-wrap.drag-over {
+            border-color:var(--pink);
+            box-shadow:0 0 30px rgba(255,45,120,0.2);
+        }
+
+        /* ── CONTROLS ── */
+        .controls {
+            flex-shrink:0;
+            display:flex;
+            align-items:center;
+            gap:16px;
+            flex-wrap:wrap;
+        }
+
+        .ctrl-group {
+            display:flex;
+            align-items:center;
+            gap:10px;
+        }
+
+        .ctrl-label {
+            color:var(--green-dim);
+            font-size:11px;
+            opacity:0.7;
+            white-space:nowrap;
+        }
+
+        /* Slider */
+        input[type=range] {
+            -webkit-appearance:none;
+            width:180px;
+            height:2px;
+            background:var(--green-dark);
+            outline:none;
+            cursor:pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance:none;
+            width:10px; height:10px;
+            border-radius:50%;
+            background:var(--green);
+            box-shadow:0 0 6px rgba(0,255,65,0.7);
+            cursor:pointer;
+        }
+        input[type=range]::-moz-range-thumb {
+            width:10px; height:10px;
+            border-radius:50%;
+            background:var(--green);
+            border:none;
+            box-shadow:0 0 6px rgba(0,255,65,0.7);
+        }
+
+        /* Buttons */
+        .btn {
+            background:transparent;
+            border:1px solid var(--pink-dim);
+            color:var(--pink);
+            font-family:inherit;
+            font-size:11px;
+            padding:3px 12px;
+            cursor:pointer;
+            text-shadow:0 0 5px rgba(255,45,120,0.4);
+            transition:background 0.1s, box-shadow 0.1s;
+            white-space:nowrap;
+        }
+        .btn:hover { background:rgba(255,45,120,0.1); box-shadow:0 0 10px rgba(255,45,120,0.2); }
+        .btn.active { border-color:var(--pink); background:rgba(255,45,120,0.12); }
+
+        /* File input trigger */
+        #file-input { display:none; }
+
+        .separator {
+            width:1px;
+            height:18px;
+            background:var(--green-dark);
+            opacity:0.4;
+            flex-shrink:0;
+        }
+
+        /* ── FOOTER ── */
+        .page-footer {
+            flex-shrink:0;
+            display:flex;
+            align-items:center;
+            gap:20px;
+        }
+
+        .back-link { color:var(--green-dim); font-size:11px; opacity:0.55; text-decoration:none; }
+        .back-link:hover { opacity:1; }
+        .info { color:var(--green-dim); font-size:11px; opacity:0.4; }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <div class="page-header">
+        <h1>// IMAGE IN STATIC — DEMO</h1>
+        <p class="subtitle">Image luminance shapes the noise. Drag a photo in, or use the default. Try the emerge / dissolve animation.</p>
+    </div>
+
+    <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="main-canvas"></canvas>
+        <div class="drop-hint">drag & drop an image or video</div>
+    </div>
+
+    <div class="controls">
+        <!-- Influence slider -->
+        <div class="ctrl-group">
+            <span class="ctrl-label">NOISE ONLY</span>
+            <input type="range" id="influence" min="0" max="100" value="70">
+            <span class="ctrl-label">IMAGE</span>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Animations -->
+        <button class="btn" id="btn-emerge"   onclick="startEmerge()">[ EMERGE ]</button>
+        <button class="btn" id="btn-dissolve" onclick="startDissolve()">[ DISSOLVE ]</button>
+        <button class="btn" id="btn-pulse"    onclick="togglePulse()" >[ PULSE ]</button>
+
+        <div class="separator"></div>
+
+        <!-- Image controls -->
+        <button class="btn" onclick="useDefaultImage()">[ DEFAULT ]</button>
+        <button class="btn" onclick="document.getElementById('file-input').click()">[ LOAD IMAGE ]</button>
+        <button class="btn" onclick="loadVideo()">[ LOAD VIDEO ]</button>
+        <input type="file" id="file-input" accept="image/*,video/*" onchange="handleFile(this)">
+    </div>
+
+    <div class="page-footer">
+        <a class="back-link" href="index.html">&larr; back to main terminal</a>
+        <span class="info" id="info">default image — drag in your own photo or video</span>
+    </div>
+
+</div>
+<script>
+
+    // ── Canvas setup ──────────────────────────────────────────────────────────
+
+    const mainCanvas = document.getElementById('main-canvas');
+    const ctx        = mainCanvas.getContext('2d');
+
+    // Offscreen canvas holds the current source image (resized to match main canvas)
+    const srcCanvas = document.createElement('canvas');
+    const srcCtx    = srcCanvas.getContext('2d');
+
+    let influence  = 0.7;   // 0 = pure noise, 1 = fully image-shaped noise
+    let animating  = false; // emerge / dissolve animation
+    let pulsing    = false;
+    let videoSrc   = null;  // active video element if using video
+    let animDir    = 1;     // 1 = emerge, -1 = dissolve
+    let frameId    = null;
+
+    // ── Resize ────────────────────────────────────────────────────────────────
+
+    function resize() {
+        const wrap = document.getElementById('canvas-wrap');
+        const r    = wrap.getBoundingClientRect();
+        mainCanvas.width  = Math.ceil(r.width);
+        mainCanvas.height = Math.ceil(r.height);
+        srcCanvas.width   = mainCanvas.width;
+        srcCanvas.height  = mainCanvas.height;
+        redrawSource();
+    }
+
+    window.addEventListener('resize', resize);
+
+    // ── Source image management ───────────────────────────────────────────────
+
+    let sourceBitmap = null; // current ImageBitmap or null
+
+    function redrawSource() {
+        if (!sourceBitmap) {
+            drawDefaultImage();
+        } else {
+            srcCtx.clearRect(0, 0, srcCanvas.width, srcCanvas.height);
+            srcCtx.drawImage(sourceBitmap, 0, 0, srcCanvas.width, srcCanvas.height);
+        }
+    }
+
+    // Default: name rendered as text — replace with any image
+    function drawDefaultImage() {
+        const w = srcCanvas.width, h = srcCanvas.height;
+        srcCtx.clearRect(0, 0, w, h);
+
+        // Dark background
+        srcCtx.fillStyle = '#000';
+        srcCtx.fillRect(0, 0, w, h);
+
+        // Name in white — brightness drives static intensity
+        srcCtx.fillStyle = '#fff';
+        srcCtx.textAlign = 'center';
+        srcCtx.textBaseline = 'middle';
+
+        const size = Math.floor(Math.min(w, h) * 0.12);
+        srcCtx.font = `bold ${size}px Share Tech Mono, monospace`;
+        srcCtx.fillText('MICAH', w * 0.5, h * 0.42);
+        srcCtx.fillText('LIVESAY', w * 0.5, h * 0.58);
+
+        // Subtle glow passes to give the text more density
+        srcCtx.filter = 'blur(8px)';
+        srcCtx.globalAlpha = 0.4;
+        srcCtx.fillText('MICAH', w * 0.5, h * 0.42);
+        srcCtx.fillText('LIVESAY', w * 0.5, h * 0.58);
+        srcCtx.filter = 'none';
+        srcCtx.globalAlpha = 1;
+
+        document.getElementById('info').textContent =
+            'default: name in static — replace with any image or video';
+    }
+
+    function useDefaultImage() {
+        sourceBitmap = null;
+        videoSrc     = null;
+        redrawSource();
+    }
+
+    // ── File / drag-drop loading ──────────────────────────────────────────────
+
+    function handleFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        loadFileObject(file);
+    }
+
+    function loadFileObject(file) {
+        videoSrc = null;
+        if (file.type.startsWith('video/')) {
+            loadVideoFile(file);
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            createImageBitmap(img).then(bm => {
+                sourceBitmap = bm;
+                redrawSource();
+                document.getElementById('info').textContent =
+                    `${file.name} — luminance shapes the static`;
+            });
+        };
+        img.src = url;
+    }
+
+    function loadVideoFile(file) {
+        const url = URL.createObjectURL(file);
+        const vid = document.createElement('video');
+        vid.src    = url;
+        vid.loop   = true;
+        vid.muted  = true;
+        vid.autoplay = true;
+        vid.playsInline = true;
+        vid.play().catch(() => {});
+        videoSrc = vid;
+        sourceBitmap = null;
+        document.getElementById('info').textContent =
+            `${file.name} — live video in static`;
+    }
+
+    function loadVideo() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'video/*';
+        input.onchange = () => { if (input.files[0]) loadVideoFile(input.files[0]); };
+        input.click();
+    }
+
+    // Drag-and-drop
+    const wrap = document.getElementById('canvas-wrap');
+    wrap.addEventListener('dragover',  e => { e.preventDefault(); wrap.classList.add('drag-over'); });
+    wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
+    wrap.addEventListener('drop', e => {
+        e.preventDefault();
+        wrap.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) loadFileObject(file);
+    });
+
+    // ── Noise draw ────────────────────────────────────────────────────────────
+
+    function drawFrame(inf) {
+        // If using video, update srcCanvas from current video frame
+        if (videoSrc && videoSrc.readyState >= 2) {
+            srcCtx.drawImage(videoSrc, 0, 0, srcCanvas.width, srcCanvas.height);
+        }
+
+        const w = mainCanvas.width, h = mainCanvas.height;
+        const out = ctx.createImageData(w, h);
+        const d   = out.data;
+
+        // Read source luminance (used to shape noise)
+        const src = srcCtx.getImageData(0, 0, w, h).data;
+
+        // Per-row brightness variation — horizontal banding
+        const rowMod = new Float32Array(h);
+        for (let y = 0; y < h; y++) {
+            rowMod[y] = 0.55 + Math.random() * 0.9;
+        }
+
+        for (let y = 0; y < h; y++) {
+            const rm = rowMod[y];
+            for (let x = 0; x < w; x++) {
+                const p = (y * w + x) * 4;
+
+                // Source luminance at this pixel (0–1)
+                const luma = (src[p] * 0.299 + src[p+1] * 0.587 + src[p+2] * 0.114) / 255;
+
+                // Effective brightness: blend pure-random vs image-guided
+                // - inf=0: fully random  (pure static)
+                // - inf=1: fully shaped  (image drives brightness)
+                const randBright = Math.random();
+                const imgBright  = luma * (0.6 + Math.random() * 0.8); // still noisy
+                const bright     = randBright * (1 - inf) + imgBright * inf;
+
+                const v = bright * rm;
+                const roll = Math.random();
+
+                if (roll > 0.988) {
+                    // White spark — more likely in bright image areas
+                    const spark = Math.min(1, v * 1.5);
+                    d[p] = d[p+1] = d[p+2] = Math.floor(spark * 235);
+                    d[p+3] = 255;
+                } else if (roll > 0.970) {
+                    // Pink aberration
+                    const b = Math.floor(v * 240);
+                    d[p]   = b;
+                    d[p+1] = 0;
+                    d[p+2] = Math.floor(b * 0.55);
+                    d[p+3] = 255;
+                } else if (roll > 0.952) {
+                    // Cyan aberration
+                    d[p]   = 0;
+                    d[p+1] = Math.floor(v * 220);
+                    d[p+2] = Math.floor(v * 180);
+                    d[p+3] = 255;
+                } else {
+                    // Green static — brightness shaped by image
+                    d[p]   = 0;
+                    d[p+1] = Math.floor(v * 255);
+                    d[p+2] = Math.floor(v * 20);
+                    d[p+3] = 255;
+                }
+            }
+        }
+
+        ctx.putImageData(out, 0, 0);
+
+        // Occasional horizontal interference line
+        if (Math.random() > 0.55) {
+            const ly = Math.floor(Math.random() * h);
+            ctx.fillStyle = `rgba(0,255,65,${Math.random() * 0.2})`;
+            ctx.fillRect(0, ly, w, 1 + Math.floor(Math.random() * 2));
+        }
+    }
+
+    // ── Render loop ───────────────────────────────────────────────────────────
+
+    function loop() {
+        drawFrame(influence);
+        frameId = requestAnimationFrame(loop);
+    }
+
+    // ── Animations ───────────────────────────────────────────────────────────
+
+    let animSpeed = 0.012;
+
+    function startEmerge() {
+        animating = true;
+        pulsing   = false;
+        animDir   = 1;
+        if (influence > 0.05) influence = 0;
+        document.getElementById('btn-pulse').classList.remove('active');
+    }
+
+    function startDissolve() {
+        animating = true;
+        pulsing   = false;
+        animDir   = -1;
+        if (influence < 0.95) influence = 1;
+        document.getElementById('btn-pulse').classList.remove('active');
+    }
+
+    function togglePulse() {
+        pulsing   = !pulsing;
+        animating = false;
+        document.getElementById('btn-pulse').classList.toggle('active', pulsing);
+    }
+
+    let pulseT = 0;
+
+    // Advance animation state each frame
+    function tickAnim() {
+        if (animating) {
+            influence += animDir * animSpeed;
+            if (influence >= 1) { influence = 1; animating = false; }
+            if (influence <= 0) { influence = 0; animating = false; }
+            document.getElementById('influence').value = Math.round(influence * 100);
+        }
+
+        if (pulsing) {
+            pulseT += 0.008;
+            influence = 0.3 + Math.sin(pulseT) * 0.35 + Math.sin(pulseT * 2.3) * 0.08;
+            influence = Math.max(0, Math.min(1, influence));
+            document.getElementById('influence').value = Math.round(influence * 100);
+        }
+    }
+
+    // Wrap loop to include animation ticking
+    function animLoop() {
+        tickAnim();
+        drawFrame(influence);
+        frameId = requestAnimationFrame(animLoop);
+    }
+
+    // ── Slider ────────────────────────────────────────────────────────────────
+
+    document.getElementById('influence').addEventListener('input', function() {
+        influence = this.value / 100;
+        animating = false;
+        pulsing   = false;
+        document.getElementById('btn-pulse').classList.remove('active');
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+
+    window.addEventListener('load', () => {
+        resize();
+        animLoop();
+        // Auto-start the emerge animation so the effect is immediately visible
+        setTimeout(() => startEmerge(), 400);
+    });
+
+</script>
+</body>
+</html>
