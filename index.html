@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MICAH LIVESAY // AUDIO ENGINEER</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div class="crt-wrapper">
+        <!-- CRT overlay effects -->
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+        <div class="screen-glitch-overlay" id="glitch-overlay"></div>
+
+        <!-- The terminal -->
+        <div class="terminal" id="terminal">
+            <div class="output" id="output"></div>
+            <div class="input-line" id="input-line" style="display:none;">
+                <span class="prompt">MICAH@LIVESAY:~$&nbsp;</span>
+                <span class="input-display" id="input-display"></span><span class="cursor">█</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/sound-engine.js"></script>
+    <script src="js/boot.js"></script>
+    <script src="js/cli.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
