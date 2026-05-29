@@ -21,6 +21,30 @@ html, body {
     overflow: hidden;
 }
 
+/* Custom CLI crosshair cursor — glow halo drawn behind crisp cursor */
+html {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cline x1='0' y1='14' x2='10' y2='14' stroke='%2300ff41' stroke-width='4' opacity='0.2'/%3E%3Cline x1='18' y1='14' x2='28' y2='14' stroke='%2300ff41' stroke-width='4' opacity='0.2'/%3E%3Cline x1='14' y1='0' x2='14' y2='10' stroke='%2300ff41' stroke-width='4' opacity='0.2'/%3E%3Cline x1='14' y1='18' x2='14' y2='28' stroke='%2300ff41' stroke-width='4' opacity='0.2'/%3E%3Crect x='12' y='12' width='4' height='4' fill='%2300ff41' opacity='0.25'/%3E%3Cline x1='0' y1='14' x2='10' y2='14' stroke='%2300ff41' stroke-width='1.5'/%3E%3Cline x1='18' y1='14' x2='28' y2='14' stroke='%2300ff41' stroke-width='1.5'/%3E%3Cline x1='14' y1='0' x2='14' y2='10' stroke='%2300ff41' stroke-width='1.5'/%3E%3Cline x1='14' y1='18' x2='14' y2='28' stroke='%2300ff41' stroke-width='1.5'/%3E%3Crect x='13' y='13' width='2' height='2' fill='%2300ff41'/%3E%3C/svg%3E") 14 14, crosshair;
+}
+
+/* Phosphor trail canvas */
+#cursor-trail {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* Keep the crosshair consistent — no pointer change on interactive elements */
+button, a, input, [role="button"] {
+    cursor: inherit;
+}
+
+/* Cursor hidden by default — JS shows it on mousemove, hides after idle */
+.cursor-hidden,
+.cursor-hidden * {
+    cursor: none !important;
+}
+
 /* ─── CRT WRAPPER ─────────────────────────────────────── */
 
 .crt-wrapper {
@@ -515,7 +539,6 @@ html, body {
     align-items: center;
     justify-content: center;
     font-family: 'Share Tech Mono', monospace;
-    cursor: default;
     /* Ambient phosphor glow — the monitor is on but idle */
     box-shadow: inset 0 0 200px rgba(0,255,65,0.04);
 }

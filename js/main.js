@@ -4,10 +4,15 @@ const Main = {
     formFocus: false,
     glitchTimer: null,
     _started: false,
+    _cursorX: 0,
+    _cursorY: 0,
+    _glitching: false,
 
     // ── Splash + session start ────────────────────────────────────────────────
 
     setup() {
+        this.initCursorHide();
+        this.initCursorTrail();
         this.initSplashEffect();
         const splash = document.getElementById('splash');
 
@@ -33,6 +38,153 @@ const Main = {
         });
 
         splash.addEventListener('click', start);
+    },
+
+    // ── Phosphor cursor trail ─────────────────────────────────────────────────
+
+    initCursorTrail() {
+        const canvas = document.getElementById('cursor-trail');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        const resize = () => {
+            canvas.width  = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+        resize();
+        window.addEventListener('resize', resize);
+
+        const trail   = [];
+        const DURATION = 280; // ms — how long each trail point persists
+
+        document.addEventListener('mousemove', (e) => {
+            trail.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+        });
+
+        const draw = () => {
+            // Glitch animation has full control of the canvas — skip trail draw
+            if (this._glitching) { requestAnimationFrame(draw); return; }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Only render trail when cursor is visible
+            if (!document.documentElement.classList.contains('cursor-hidden')) {
+                const now = performance.now();
+
+                // Drop expired points
+                while (trail.length > 0 && now - trail[0].t > DURATION) trail.shift();
+
+                // Draw trail — skip the last 3 points (essentially current cursor pos)
+                for (let i = 0; i < trail.length - 3; i++) {
+                    const p    = trail[i];
+                    const life = 1 - (now - p.t) / DURATION; // 1 → 0 as it ages
+                    const size = Math.max(0.4, 1.8 * life);
+
+                    ctx.save();
+                    ctx.globalAlpha = life * 0.28; // very faint — max ~28% opacity
+                    ctx.shadowBlur  = 5 * life;
+                    ctx.shadowColor = '#00ff41';
+                    ctx.fillStyle   = '#00ff41';
+                    ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+                    ctx.restore();
+                }
+            }
+
+            requestAnimationFrame(draw);
+        };
+
+        requestAnimationFrame(draw);
+    },
+
+    // ── Cursor hide / show on idle ────────────────────────────────────────────
+
+    initCursorHide() {
+        const root = document.documentElement;
+        let hideTimer = null;
+
+        const hideCursor = () => {
+            // If we have a known position, play the glitch-out before hiding
+            if (this._cursorX || this._cursorY) {
+                this._triggerGlitchHide(() => root.classList.add('cursor-hidden'));
+            } else {
+                root.classList.add('cursor-hidden');
+            }
+        };
+
+        const showCursor = () => {
+            root.classList.remove('cursor-hidden');
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(hideCursor, 1000);
+        };
+
+        hideCursor();
+        document.addEventListener('mousemove', (e) => {
+            this._cursorX = e.clientX;
+            this._cursorY = e.clientY;
+            showCursor();
+        });
+    },
+
+    // ── Chromatic aberration glitch on cursor hide ────────────────────────────
+
+    _triggerGlitchHide(onDone) {
+        const canvas = document.getElementById('cursor-trail');
+        if (!canvas) { onDone(); return; }
+
+        const ctx    = canvas.getContext('2d');
+        const x      = this._cursorX;
+        const y      = this._cursorY;
+        const FRAMES = 7;
+        let   frame  = 0;
+
+        this._glitching = true;
+
+        // Draw one channel of the cursor crosshair at an offset position
+        const drawChannel = (cx, cy, color, alpha) => {
+            ctx.save();
+            ctx.globalAlpha  = alpha;
+            ctx.strokeStyle  = color;
+            ctx.fillStyle    = color;
+            ctx.lineWidth    = 1.5;
+            ctx.shadowBlur   = 10;
+            ctx.shadowColor  = color;
+            ctx.beginPath();
+            ctx.moveTo(cx - 14, cy); ctx.lineTo(cx - 4, cy);
+            ctx.moveTo(cx +  4, cy); ctx.lineTo(cx + 14, cy);
+            ctx.moveTo(cx, cy - 14); ctx.lineTo(cx, cy - 4);
+            ctx.moveTo(cx, cy +  4); ctx.lineTo(cx, cy + 14);
+            ctx.stroke();
+            ctx.fillRect(cx - 1, cy - 1, 2, 2);
+            ctx.restore();
+        };
+
+        const animate = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (frame >= FRAMES) {
+                this._glitching = false;
+                onDone();
+                return;
+            }
+
+            const progress = frame / FRAMES;
+            // Spread starts wide and reduces slightly — channels stay separated
+            const spread  = 10 - progress * 4;
+            const alpha   = 1 - progress * 0.25;
+            // Random jitter increases chaos on later frames
+            const jx = (Math.random() - 0.5) * (2 + progress * 4);
+            const jy = (Math.random() - 0.5) * (1 + progress * 2);
+
+            drawChannel(x - spread + jx,      y + jy,      'rgba(255,45,120,0.9)',  alpha * 0.9); // pink left
+            drawChannel(x + spread + jx * 0.5, y - jy * 0.5, 'rgba(0,255,204,0.9)', alpha * 0.9); // cyan right
+            drawChannel(x + jx * 0.3,          y + jy * 0.3, '#00ff41',              alpha);       // green centre
+
+            frame++;
+            setTimeout(animate, 28); // ~7 frames × 28ms ≈ 200ms total
+        };
+
+        animate();
     },
 
     // ── Splash image-in-static effect ────────────────────────────────────────

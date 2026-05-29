@@ -47,7 +47,8 @@ const Boot = {
         [9050,  '║                                                              ║', 'line-pink'],
         [9200,  '╚══════════════════════════════════════════════════════════════╝', 'line-pink'],
         [9500,  '', ''],
-        [9700,  'System ready. Type a command or click one of the options below.', 'line-dim'],
+        [9700,  'System ready...', 'line-dim'],
+        [9800,  'Type a command from the list below.', 'line-green'],
         [9900,  '', ''],
     ],
 
@@ -70,7 +71,6 @@ const Boot = {
                     span.className = `line ${cls}`;
                     span.textContent = text;
                     outputEl.appendChild(span);
-                    outputEl.appendChild(document.createElement('br'));
                 }
 
                 // Play tick every other content line
@@ -79,7 +79,6 @@ const Boot = {
                     lastTickDelay = delay;
                 }
 
-                // Use requestAnimationFrame so the DOM has painted before we measure scrollHeight
                 requestAnimationFrame(() => {
                     const terminal = outputEl.parentElement;
                     terminal.scrollTop = terminal.scrollHeight;

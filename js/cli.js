@@ -8,20 +8,20 @@ const CLI = {
     splitOpen: false,
 
     commands: {
-        help:      { desc: 'Show available commands',        run: () => CLI.showHelp() },
-        profile:   { desc: 'About Micah Livesay',            run: () => CLI.showProfile() },
-        portfolio: { desc: 'Sound design & audio work',      run: () => CLI.showPortfolio() },
-        blog:      { desc: 'Articles & sound diaries',       run: () => CLI.showBlog() },
-        contact:   { desc: 'Get in touch',                   run: () => CLI.showContact() },
-        skills:    { desc: 'Tools & technical expertise',    run: () => CLI.showSkills() },
-        whoami:    { desc: 'Quick identity readout',         run: () => CLI.whoami() },
-        sound:     { desc: 'Toggle audio on / off',          run: () => CLI.toggleSound() },
-        clear:     { desc: 'Clear the terminal screen',      run: () => CLI.clearScreen() },
+        help:      { desc: 'Show available commands',             run: () => CLI.showHelp() },
+        profile:   { desc: 'About Micah Livesay',                 run: () => CLI.showProfile() },
+        portfolio: { desc: 'Sound design & audio work',           run: () => CLI.showPortfolio() },
+        blog:      { desc: 'Articles & sound diaries',            run: () => CLI.showBlog() },
+        contact:   { desc: 'Get in touch',                        run: () => CLI.showContact() },
+        services:  { desc: 'What I offer',                        run: () => CLI.showServices() },
+        whoami:    { desc: 'Quick identity readout',              run: () => CLI.whoami() },
+        sound:     { desc: 'Toggle audio on / off',               run: () => CLI.toggleSound() },
+        clear:     { desc: 'Clear the terminal screen',           run: () => CLI.clearScreen() },
         exit:      { desc: 'Terminate session & exit fullscreen', run: () => CLI.shutdown() },
     },
 
     // Commands that open the right pane
-    _contentCommands: new Set(['help','profile','portfolio','blog','contact','skills','whoami']),
+    _contentCommands: new Set(['help','profile','portfolio','blog','contact','services','whoami']),
 
     // ── Execute ───────────────────────────────────────────────────────────────
 
@@ -38,10 +38,9 @@ const CLI = {
 
         SoundEngine.play('command_enter');
 
-        // Unknown command
+        // Unknown command — show tree as a reminder
         if (!this.commands[input]) {
             this.print(`bash: ${input}: command not found`, 'line-error');
-            this.print('Type "help" to see available commands.', 'line-dim');
             SoundEngine.play('command_error');
             const d = this._animDelay + 100;
             setTimeout(() => { this.br(); this.showSuggestions(); this.scrollBottom(); }, d);
@@ -51,8 +50,7 @@ const CLI = {
         // Utility: sound (stays in left pane, no split)
         if (input === 'sound') {
             this.commands.sound.run();
-            const d = this._animDelay + 100;
-            setTimeout(() => { this.br(); this.showSuggestions(); this.scrollBottom(); }, d);
+            setTimeout(() => { this.scrollBottom(); }, this._animDelay + 100);
             return;
         }
 
@@ -68,12 +66,11 @@ const CLI = {
             return;
         }
 
-        // Content command → right pane
+        // Content command → right pane — no tree reprint
         SoundEngine.play('command_success');
 
-        // Show suggestions in left pane after the echo has printed
         const leftDone = this._animDelay + 100;
-        setTimeout(() => { this.br(); this.showSuggestions(); this.scrollBottom(); }, leftDone);
+        setTimeout(() => { this.scrollBottom(); }, leftDone);
 
         // Content command → right pane
         if (!this.splitOpen) {
@@ -313,12 +310,14 @@ const CLI = {
 
     showHelp() {
         this._setRightHeader('[ HELP.SYS ] — AVAILABLE COMMANDS');
-        this.printRight('', 'line-dim');
+        this.brRight();
+        const hidden = new Set(['clear', 'whoami', 'sound']);
         Object.entries(this.commands).forEach(([name, cmd]) => {
+            if (hidden.has(name)) return;
             this.printRight(`  ${name.padEnd(12)} ${cmd.desc}`, 'line-green');
         });
         this.brRight();
-        this.printRight('Click a command below or type it and press ENTER.', 'line-dim');
+        this.printRight('Type a command and press ENTER.', 'line-dim');
     },
 
     whoami() {
@@ -357,7 +356,7 @@ const CLI = {
         this.printRight('  Specialties    Sound Design, Audio Engineering, Music Production', 'line-green');
         this.printRight('  Credits        [ADD CREDITS]', 'line-green');
         this.brRight();
-        this.printRight('Type "skills" to see full toolset.', 'line-dim');
+        this.printRight('Type "services" to see what I offer.', 'line-dim');
     },
 
     showPortfolio() {
@@ -493,22 +492,21 @@ const CLI = {
         }, 1800);
     },
 
-    showSkills() {
-        this._setRightHeader('[ SKILLS.SYS ] — LOADED MODULES');
+    showServices() {
+        this._setRightHeader('[ SERVICES.SYS ]');
         this.brRight();
 
-        // ── EDIT SKILLS ──
-        const skills = [
-            { cat:'DAW',          items:'Pro Tools, Logic Pro, Ableton Live, Reaper' },
-            { cat:'SOUND DESIGN', items:'Foley, SFX, Synthesis, Sampling, Field Recording' },
-            { cat:'MIXING',       items:'Stereo, Immersive (Dolby Atmos), Stem Mixing' },
-            { cat:'MASTERING',    items:'Streaming, Vinyl, Broadcast' },
-            { cat:'PLUGINS',      items:'Waves, FabFilter, iZotope, Native Instruments' },
-            { cat:'FORMATS',      items:'Film, Television, Games, Podcast, Commercial' },
+        // ── EDIT SERVICES ──
+        const services = [
+            { cat:'SOUND DESIGN',      items:'Foley, SFX, Synthesis, Sampling, Field Recording' },
+            { cat:'AUDIO ENGINEERING', items:'Recording, Editing, Mixing' },
+            { cat:'MIXING',            items:'Stereo, Immersive (Dolby Atmos), Stem Mixing' },
+            { cat:'MASTERING',         items:'Streaming, Vinyl, Broadcast' },
+            { cat:'FORMATS',           items:'Film, Television, Games, Podcast, Commercial' },
         ];
         // ── END EDIT ──
 
-        skills.forEach(s => {
+        services.forEach(s => {
             this.printRight(`[ ${s.cat} ]`, 'line-pink');
             this.printRight(`  ${s.items}`, 'line-green');
             this.brRight();
@@ -607,28 +605,42 @@ const CLI = {
 
     showSuggestions() {
         const output = document.getElementById('output');
-        const div = document.createElement('div');
-        div.className = 'suggestions';
 
-        const label = document.createElement('span');
-        label.className = 'suggestion-label';
-        label.textContent = 'CMDS >';
-        div.appendChild(label);
+        const cmds = [
+            { name: 'profile',   desc: 'About Micah Livesay'      },
+            { name: 'portfolio', desc: 'Sound design & audio work' },
+            { name: 'blog',      desc: 'Articles & sound diaries'  },
+            { name: 'contact',   desc: 'Get in touch'              },
+            { name: 'help',      desc: 'All commands'              },
+            { name: 'exit',      desc: 'Terminate session'         },
+        ];
 
-        const cmds = ['profile','portfolio','blog','contact','skills','help','clear'];
-        cmds.forEach(cmd => {
-            const btn = document.createElement('button');
-            btn.className = 'cmd-btn';
-            btn.textContent = cmd;
-            btn.addEventListener('mouseenter', () => SoundEngine.play('hover'));
-            btn.addEventListener('click', () => {
-                SoundEngine.play('click_cmd');
-                Main.submitCommand(cmd);
-            });
-            div.appendChild(btn);
+        // Root node
+        const root = document.createElement('span');
+        root.className = 'line line-dim';
+        root.textContent = '/';
+        output.appendChild(root);
+
+        cmds.forEach((cmd, i) => {
+            const isLast  = i === cmds.length - 1;
+            const branch  = isLast ? '└── ' : '├── ';
+
+            const line = document.createElement('span');
+            line.className = 'line';
+
+            const branchSpan = document.createElement('span');
+            branchSpan.style.cssText = 'color:var(--green-dim);opacity:0.55;';
+            branchSpan.textContent = branch;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.style.cssText = 'color:var(--pink);text-shadow:0 0 6px rgba(255,45,120,0.5);';
+            nameSpan.textContent = cmd.name;
+
+            line.appendChild(branchSpan);
+            line.appendChild(nameSpan);
+            output.appendChild(line);
         });
 
-        output.appendChild(div);
         output.appendChild(document.createElement('br'));
     },
 };
