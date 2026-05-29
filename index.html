@@ -17,17 +17,17 @@
         <div class="splash-content">
             <div class="splash-sysid">
                 <span>MicahWarez_OS v2.0.77 </span>
-                <span>can </span>
+                <span>Neural Interface Terminal </span>
             </div>
             <div class="splash-divider">────────────────────────────────────</div>
             <div class="splash-status">
-                <span>DECK &nbsp;&nbsp;&nbsp; ██ ARMED</span>
-                <span>EEG SIGNAL &nbsp; ██ LOCKED</span>
-                <span>OPERATOR &nbsp;&nbsp;&nbsp;&nbsp; ██ DETECTED</span>
+                <span class="status-label">DECK</span><span class="status-value"><span class="status-indicator armed">██</span> ARMED</span>
+                <span class="status-label">EEG SIGNAL</span><span class="status-value"><span class="status-indicator active">██</span> LOCKED</span>
+                <span class="status-label">OPERATOR</span><span class="status-value"><span class="status-indicator active">██</span> DETECTED</span>
             </div>
             <div class="splash-divider">────────────────────────────────────</div>
             <div class="splash-prompt">▶&nbsp; PRESS ANY KEY TO BOOT &nbsp;◀</div>
-            <div class="splash-sub">or click anywhere</div>
+            
         </div>
     </div>
 
@@ -65,6 +65,7 @@
     <!-- Phosphor trail canvas — sits above everything, pointer-events none -->
     <canvas id="cursor-trail"></canvas>
 
+    <script src="js/content.js"></script>
     <script src="js/StaticEffect.js"></script>
     <script src="js/sound-engine.js"></script>
     <script src="js/boot.js"></script>

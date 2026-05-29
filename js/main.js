@@ -200,7 +200,7 @@ const Main = {
             bloomOpacity:    0.4,
             bloomBlur:       6,
             bloomBrightness: 1.8,
-            bloomBlend:      'normal',
+            bloomBlend:      'screen',
             zIndex:          1,
         });
 

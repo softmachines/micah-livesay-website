@@ -115,8 +115,19 @@ class StaticEffect {
         this._src    = document.createElement('canvas');
         this._srcCtx = this._src.getContext('2d');
 
-        this.container.appendChild(this._canvas);
-        this.container.appendChild(this._bloom);
+        // Wrap both canvases in an isolated compositing group.
+        // This contains mix-blend-mode:screen within the wrapper so it
+        // can't bleed through transparent parent containers.
+        this._wrapper = document.createElement('div');
+        this._wrapper.style.cssText = [
+            'position:absolute', 'inset:0',
+            'isolation:isolate',
+            'pointer-events:none',
+            `z-index:${this._opts.zIndex}`,
+        ].join(';');
+        this._wrapper.appendChild(this._canvas);
+        this._wrapper.appendChild(this._bloom);
+        this.container.appendChild(this._wrapper);
 
         this._resize();
     }
@@ -327,7 +338,6 @@ class StaticEffect {
     destroy() {
         this.stop();
         if (this._ro) this._ro.disconnect();
-        this._canvas.remove();
-        this._bloom.remove();
+        if (this._wrapper) this._wrapper.remove();
     }
 }

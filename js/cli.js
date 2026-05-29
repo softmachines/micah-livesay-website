@@ -153,15 +153,15 @@ const CLI = {
                 for (let x = 0; x < w; x++) {
                     const p = (y * w + x) * 4;
                     const v = Math.random();
-                    const b = Math.floor(v * 255 * rm);
+                    const b = Math.floor(v * 204 * rm); // 255 * 0.8
                     if (v > 0.987) {
-                        d[p] = d[p+1] = d[p+2] = 230; d[p+3] = 255;
+                        d[p] = d[p+1] = d[p+2] = 184; d[p+3] = 255; // 230 * 0.8
                     } else if (v > 0.968) {
                         d[p] = Math.floor(b*0.9); d[p+1] = 0; d[p+2] = Math.floor(b*0.6); d[p+3] = 255;
                     } else if (v > 0.950) {
                         d[p] = 0; d[p+1] = Math.floor(b*0.9); d[p+2] = Math.floor(b*0.8); d[p+3] = 255;
                     } else {
-                        const g = Math.floor(Math.random() * 255 * rm);
+                        const g = Math.floor(Math.random() * 204 * rm); // 255 * 0.8
                         d[p] = 0; d[p+1] = g; d[p+2] = Math.floor(g*0.08); d[p+3] = 255;
                     }
                 }
@@ -521,20 +521,7 @@ const CLI = {
             this._animDelay = Math.max(this._animDelay, 400);
         }
 
-        const seq = [
-            ['>> INITIATING SHUTDOWN SEQUENCE...', 'line-pink'],
-            ['', ''],
-            ['   [AUDIO]   Signal chain terminated ......... OK', 'line-dim'],
-            ['   [DSP]     Processors offline .............. OK', 'line-dim'],
-            ['   [FX]      Effects chain unloaded .......... OK', 'line-dim'],
-            ['   [NET]     Neural link severed ............. OK', 'line-dim'],
-            ['   [MEM]     Flushing memory buffers ......... OK', 'line-dim'],
-            ['   [FS]      Unmounting filesystems .......... OK', 'line-dim'],
-            ['', ''],
-            ['>> SYSTEM HALTED.', 'line-pink'],
-            ['', ''],
-            ['   GOODBYE, OPERATOR.', 'line-green'],
-        ];
+        const seq = SITE_CONTENT.shutdown;
 
         seq.forEach(([text, cls]) => {
             if (text === '') this.br();
