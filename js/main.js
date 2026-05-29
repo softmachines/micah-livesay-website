@@ -128,6 +128,10 @@ const Main = {
     // ── Chromatic aberration glitch on cursor hide ────────────────────────────
 
     _triggerGlitchHide(onDone) {
+        // Hide the cursor sprite immediately — the glitch canvas effect
+        // plays but the actual cursor is never visible during the animation
+        document.documentElement.classList.add('cursor-hidden');
+
         const canvas = document.getElementById('cursor-trail');
         if (!canvas) { onDone(); return; }
 
@@ -159,13 +163,16 @@ const Main = {
         };
 
         const animate = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
             if (frame >= FRAMES) {
-                this._glitching = false;
+                // Hide cursor BEFORE clearing canvas so there's no gap frame
+                // where the canvas is empty but cursor-hidden isn't applied yet
                 onDone();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                this._glitching = false;
                 return;
             }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const progress = frame / FRAMES;
             // Spread starts wide and reduces slightly — channels stay separated
