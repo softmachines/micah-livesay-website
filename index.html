@@ -11,19 +11,49 @@
 </head>
 <body>
 
+    <!-- SPLASH: shown before boot, dismissed by any key or click -->
+    <div id="splash" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-sysid">
+                <span>MICAH_OS  v2.0.77</span>
+                <span>CYBERSOUND TERMINAL EDITION</span>
+            </div>
+            <div class="splash-divider">────────────────────────────────────</div>
+            <div class="splash-status">
+                <span>AUDIO UNIT &nbsp;&nbsp;&nbsp; ██ ARMED</span>
+                <span>SIGNAL CHAIN &nbsp; ██ READY</span>
+                <span>OPERATOR &nbsp;&nbsp;&nbsp;&nbsp; ██ ABSENT</span>
+            </div>
+            <div class="splash-divider">────────────────────────────────────</div>
+            <div class="splash-prompt">▶&nbsp; PRESS ANY KEY TO BOOT &nbsp;◀</div>
+            <div class="splash-sub">or click anywhere</div>
+        </div>
+    </div>
+
     <div class="crt-wrapper">
-        <!-- CRT overlay effects -->
         <div class="scanlines"></div>
-        <div class="vignette"></div>
         <div class="screen-glitch-overlay" id="glitch-overlay"></div>
 
-        <!-- The terminal -->
-        <div class="terminal" id="terminal">
-            <div class="output" id="output"></div>
-            <div class="input-line" id="input-line" style="display:none;">
-                <span class="prompt">MICAH@LIVESAY:~$&nbsp;</span>
-                <span class="input-display" id="input-display"></span><span class="cursor">█</span>
+        <div class="pane-container" id="pane-container">
+
+            <!-- LEFT: boot output + CLI input -->
+            <div class="left-pane" id="left-pane">
+                <div class="output" id="output"></div>
+                <div class="input-line" id="input-line" style="display:none;">
+                    <span class="prompt">MICAH@LIVESAY:~$&nbsp;</span>
+                    <span class="input-display" id="input-display"></span><span class="cursor">█</span>
+                </div>
             </div>
+
+            <!-- DIVIDER: animates into existence on first command -->
+            <div class="pane-divider" id="pane-divider"></div>
+
+            <!-- RIGHT: command output -->
+            <div class="right-pane" id="right-pane">
+                <div class="right-header" id="right-header"></div>
+                <div class="right-content" id="right-content"></div>
+            </div>
+
         </div>
     </div>
 

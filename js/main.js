@@ -3,37 +3,78 @@ const Main = {
     inputBuffer: '',
     formFocus: false,
     glitchTimer: null,
+    _started: false,
+
+    // ── Splash + session start ────────────────────────────────────────────────
+
+    setup() {
+        const splash = document.getElementById('splash');
+
+        const start = () => {
+            if (this._started) return;
+            this._started = true;
+
+            this.requestFullscreen();
+
+            // Flash → fade the splash out
+            splash.classList.add('fade-out');
+            setTimeout(() => {
+                splash.style.display = 'none';
+                this.init();
+            }, 580);
+        };
+
+        // Any real key dismisses the splash (ignore lone modifiers)
+        document.addEventListener('keydown', (e) => {
+            if (['Shift','Control','Alt','Meta','CapsLock','Tab'].includes(e.key)) return;
+            start();
+        });
+
+        splash.addEventListener('click', start);
+    },
+
+    // ── Boot + input init ─────────────────────────────────────────────────────
 
     init() {
         Boot.run(document.getElementById('output'), () => {
-            // Show the input line after boot
             document.getElementById('input-line').style.display = 'flex';
-
-            // Show initial command suggestions
             CLI.showSuggestions();
             CLI.scrollBottom();
-
-            // Start input listener
             this.bindInput();
-
-            // Start ambient glitch engine
             this.scheduleGlitch();
         });
     },
 
-    // ── Input ─────────────────────────────────────────────────────────────────
+    // ── Fullscreen API ────────────────────────────────────────────────────────
+
+    requestFullscreen() {
+        const el = document.documentElement;
+        try {
+            if      (el.requestFullscreen)       el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+        } catch (_) {}
+    },
+
+    exitFullscreen() {
+        try {
+            if      (document.exitFullscreen)       document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.mozCancelFullScreen)  document.mozCancelFullScreen();
+        } catch (_) {}
+    },
+
+    // ── Keyboard input ────────────────────────────────────────────────────────
 
     bindInput() {
         document.addEventListener('keydown', e => this.handleKey(e));
     },
 
     handleKey(e) {
-        // Let the form handle its own typing
         if (this.formFocus) return;
-        if (document.activeElement && (
-            document.activeElement.tagName === 'INPUT' ||
-            document.activeElement.tagName === 'TEXTAREA'
-        )) return;
+        if (document.activeElement &&
+            (document.activeElement.tagName === 'INPUT' ||
+             document.activeElement.tagName === 'TEXTAREA')) return;
 
         switch (e.key) {
             case 'Enter':
@@ -85,7 +126,6 @@ const Main = {
         CLI.execute(cmd);
     },
 
-    // Called by CLI suggestion buttons
     submitCommand(cmd) {
         this.inputBuffer = '';
         this.updateDisplay();
@@ -108,10 +148,9 @@ const Main = {
     },
 
     // ── Ambient glitch engine ─────────────────────────────────────────────────
-    // Fires random CRT glitch visuals + sound at unpredictable intervals
 
     scheduleGlitch() {
-        const delay = 6000 + Math.random() * 14000; // 6–20 seconds between glitches
+        const delay = 6000 + Math.random() * 14000;
         this.glitchTimer = setTimeout(() => {
             this.fireGlitch();
             this.scheduleGlitch();
@@ -123,21 +162,19 @@ const Main = {
 
         const overlay = document.getElementById('glitch-overlay');
         overlay.classList.remove('active');
-        // Force reflow so the animation re-triggers
         void overlay.offsetWidth;
         overlay.classList.add('active');
 
-        // Briefly shift the terminal text (chromatic aberration feel)
-        const terminal = document.getElementById('terminal');
-        terminal.style.textShadow = '2px 0 #ff2d78, -2px 0 #00ffcc';
-        terminal.style.transform = `translate(${(Math.random() - 0.5) * 3}px, 0)`;
+        const panes = document.getElementById('pane-container');
+        panes.style.textShadow = '2px 0 #ff2d78, -2px 0 #00ffcc';
+        panes.style.transform  = `translate(${(Math.random() - 0.5) * 3}px, 0)`;
 
         setTimeout(() => {
-            terminal.style.textShadow = '';
-            terminal.style.transform = '';
+            panes.style.textShadow = '';
+            panes.style.transform  = '';
             overlay.classList.remove('active');
         }, 180);
     },
 };
 
-document.addEventListener('DOMContentLoaded', () => Main.init());
+document.addEventListener('DOMContentLoaded', () => Main.setup());
