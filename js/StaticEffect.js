@@ -62,6 +62,7 @@ class StaticEffect {
             bloomOpacity:    options.bloomOpacity    ?? 0.4,
             bloomBlur:       options.bloomBlur       ?? 6,
             bloomBrightness: options.bloomBrightness ?? 1.8,
+            bloomBlend:      options.bloomBlend      ?? 'screen',
             zIndex:          options.zIndex          ?? 0,
         };
 
@@ -106,7 +107,7 @@ class StaticEffect {
             `z-index:${this._opts.zIndex + 1}`,
             `filter:blur(${this._opts.bloomBlur}px) brightness(${this._opts.bloomBrightness})`,
             `opacity:${this._opts.bloomOpacity}`,
-            'mix-blend-mode:screen',
+            `mix-blend-mode:${this._opts.bloomBlend}`,
         ].join(';');
         this._bloomCtx = this._bloom.getContext('2d');
 

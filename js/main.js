@@ -14,7 +14,6 @@ const Main = {
     setup() {
         this.initCursorHide();
         this.initCursorTrail();
-        this.initSplashEffect();
         const splash = document.getElementById('splash');
 
         const start = () => {
@@ -22,7 +21,6 @@ const Main = {
             this._started = true;
 
             this.requestFullscreen();
-            this.stopSplashEffect();
 
             // Flash → fade the splash out
             splash.classList.add('fade-out');
@@ -194,16 +192,26 @@ const Main = {
         const splash = document.getElementById('splash');
         if (!splash) return;
 
+        // Create the effect immediately — no delay, no pop-in
+        // bloomBlend:'normal' avoids mix-blend-mode:screen leaking through
+        // the fixed splash container onto the CRT wrapper behind it
+        this._splashFx = new StaticEffect(splash, {
+            brightness:      0.85,
+            bloomOpacity:    0.4,
+            bloomBlur:       6,
+            bloomBrightness: 1.8,
+            bloomBlend:      'normal',
+            zIndex:          1,
+        });
+
         const build = () => {
             const w = window.innerWidth;
             const h = window.innerHeight;
 
-            // Draw each splash text element at its exact screen position
-            // so the static source perfectly matches the HTML layout
-            const off     = document.createElement('canvas');
-            off.width     = w;
-            off.height    = h;
-            const octx    = off.getContext('2d');
+            const off  = document.createElement('canvas');
+            off.width  = w;
+            off.height = h;
+            const octx = off.getContext('2d');
 
             octx.fillStyle = '#000';
             octx.fillRect(0, 0, w, h);
@@ -225,27 +233,20 @@ const Main = {
                 });
             };
 
-            drawEls(1);                    // crisp pass
+            drawEls(1);
             octx.filter = 'blur(6px)';
-            drawEls(0.3);                  // glow pass
+            drawEls(0.3);
             octx.filter      = 'none';
             octx.globalAlpha = 1;
 
             const img = new Image();
-            img.onload = () => {
-                this._splashFx = new StaticEffect(splash, {
-                    brightness:      0.85,
-                    bloomOpacity:    0.4,
-                    bloomBlur:       6,
-                    bloomBrightness: 1.8,
-                    zIndex:          1,
-                });
-                this._splashFx.setImage(img);
-            };
+            img.onload = () => this._splashFx.setImage(img);
             img.src = off.toDataURL();
         };
 
-        // Wait for web fonts before measuring/drawing
+        // Build source immediately with whatever font is available,
+        // then rebuild once web fonts are confirmed loaded
+        build();
         document.fonts.ready.then(build);
     },
 
