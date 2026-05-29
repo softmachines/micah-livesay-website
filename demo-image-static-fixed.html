@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMAGE IN STATIC — FIXED</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        html, body {
+            width:100%; height:100%;
+            background:#000;
+            overflow:hidden;
+        }
+
+        /* Main canvas — full resolution, sharp pixels */
+        #c {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 1;
+        }
+
+        /* Bloom canvas — quarter resolution, CSS-blurred by GPU, screen-blended over main */
+        #bloom {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            filter: blur(6px) brightness(1.8);
+            opacity: 0.4;
+            mix-blend-mode: screen;
+        }
+
+        /* Scanlines */
+        body::after {
+            content:'';
+            position:fixed; inset:0;
+            background:repeating-linear-gradient(
+                to bottom,
+                transparent 0px, transparent 2px,
+                rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
+            );
+            pointer-events:none;
+            z-index:10;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main sharp canvas -->
+    <canvas id="c"></canvas>
+    <!-- Bloom canvas: downscaled copy, GPU-blurred via CSS -->
+    <canvas id="bloom"></canvas>
+<script>
+
+    const canvas     = document.getElementById('c');
+    const ctx        = canvas.getContext('2d');
+    const bloom      = document.getElementById('bloom');
+    const bloomCtx   = bloom.getContext('2d');
+    const srcCanvas  = document.createElement('canvas');
+    const srcCtx     = srcCanvas.getContext('2d');
+
+    let srcData  = null;
+    let videoSrc = null;
+
+    const BLOOM_SCALE = 0.25; // render bloom at 1/4 res — GPU blur handles the spread
+
+    // ── Size ─────────────────────────────────────────────────────────────────
+
+    function resize() {
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+        bloom.width   = Math.ceil(window.innerWidth  * BLOOM_SCALE);
+        bloom.height  = Math.ceil(window.innerHeight * BLOOM_SCALE);
+        srcCanvas.width  = canvas.width;
+        srcCanvas.height = canvas.height;
+        redrawSource();
+    }
+    window.addEventListener('resize', resize);
+
+    // ── Source image ──────────────────────────────────────────────────────────
+
+    let currentImage = null;
+
+    function redrawSource() {
+        if (!currentImage) {
+            drawDefault();
+        } else {
+            const w = srcCanvas.width, h = srcCanvas.height;
+            const iw = currentImage.naturalWidth  || currentImage.videoWidth  || w;
+            const ih = currentImage.naturalHeight || currentImage.videoHeight || h;
+            const scale = Math.max(w / iw, h / ih);
+            const sw = iw * scale, sh = ih * scale;
+            srcCtx.clearRect(0, 0, w, h);
+            srcCtx.drawImage(currentImage, (w - sw) / 2, (h - sh) / 2, sw, sh);
+        }
+        if (!videoSrc) {
+            srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height).data;
+        }
+    }
+
+    function drawDefault() {
+        const w = srcCanvas.width, h = srcCanvas.height;
+        srcCtx.fillStyle = '#000';
+        srcCtx.fillRect(0, 0, w, h);
+        srcCtx.fillStyle = '#fff';
+        srcCtx.textAlign = 'center';
+        srcCtx.textBaseline = 'middle';
+        const size = Math.floor(Math.min(w, h) * 0.12);
+        srcCtx.font = `bold ${size}px monospace`;
+        srcCtx.fillText('MICAH',   w * 0.5, h * 0.42);
+        srcCtx.fillText('LIVESAY', w * 0.5, h * 0.58);
+        srcCtx.filter = 'blur(8px)';
+        srcCtx.globalAlpha = 0.4;
+        srcCtx.fillText('MICAH',   w * 0.5, h * 0.42);
+        srcCtx.fillText('LIVESAY', w * 0.5, h * 0.58);
+        srcCtx.filter = 'none';
+        srcCtx.globalAlpha = 1;
+    }
+
+    // ── Draw frame ────────────────────────────────────────────────────────────
+
+    function drawFrame() {
+        if (videoSrc && videoSrc.readyState >= 2) {
+            srcCtx.drawImage(videoSrc, 0, 0, srcCanvas.width, srcCanvas.height);
+            srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height).data;
+        }
+
+        const w = canvas.width, h = canvas.height;
+        if (!srcData || srcData.length !== w * h * 4) return;
+
+        const out = ctx.createImageData(w, h);
+        const d   = out.data;
+        const src = srcData;
+
+        for (let y = 0; y < h; y++) {
+            const rm = 0.55 + Math.random() * 0.9;
+            for (let x = 0; x < w; x++) {
+                const p = (y * w + x) * 4;
+                const luma = (src[p] * 0.299 + src[p+1] * 0.587 + src[p+2] * 0.114) / 255;
+
+                const imgBright  = luma * (0.6 + Math.random() * 0.8);
+                const v          = imgBright * rm * 0.7; // 0.7 scale darkens overall
+                const roll       = Math.random();
+
+                if (roll > 0.988) {
+                    const sp = Math.min(1, v * 1.5);
+                    d[p] = d[p+1] = d[p+2] = Math.floor(sp * 235);
+                    d[p+3] = 255;
+                } else if (roll > 0.970) {
+                    const b = Math.floor(v * 240);
+                    d[p] = b; d[p+1] = 0; d[p+2] = Math.floor(b * 0.55);
+                    d[p+3] = 255;
+                } else if (roll > 0.952) {
+                    d[p] = 0; d[p+1] = Math.floor(v * 220); d[p+2] = Math.floor(v * 180);
+                    d[p+3] = 255;
+                } else {
+                    d[p] = 0; d[p+1] = Math.floor(v * 255); d[p+2] = Math.floor(v * 20);
+                    d[p+3] = 255;
+                }
+            }
+        }
+
+        // Sharp pixels — identical to original, zero post-processing, full grain preserved
+        ctx.putImageData(out, 0, 0);
+
+        // Interference lines
+        if (Math.random() > 0.55) {
+            const ly = Math.floor(Math.random() * h);
+            ctx.fillStyle = `rgba(0,255,65,${Math.random() * 0.2})`;
+            ctx.fillRect(0, ly, w, 1 + Math.floor(Math.random() * 2));
+        }
+
+        // Glow — downscale main canvas into bloom canvas (cheap: small canvas)
+        // CSS blur + screen blend on the bloom element handles the phosphor spread via GPU
+        bloomCtx.drawImage(canvas, 0, 0, bloom.width, bloom.height);
+    }
+
+    // ── Loop ─────────────────────────────────────────────────────────────────
+
+    function loop() {
+        drawFrame();
+        requestAnimationFrame(loop);
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+
+    window.addEventListener('load', () => {
+        resize();
+        loop();
+    });
+
+</script>
+</body>
+</html>
