@@ -14,6 +14,7 @@ const Main = {
     setup() {
         this.initCursorHide();
         this.initCursorTrail();
+        this.initRightScrollbar();
         const splash = document.getElementById('splash');
 
         const start = () => {
@@ -269,10 +270,68 @@ const Main = {
         }
     },
 
+    // ── Right pane ghost scrollbar ────────────────────────────────────────────
+
+    initRightScrollbar() {
+        const content = document.getElementById('right-content');
+        const track   = document.getElementById('right-ghost-track');
+        const thumb   = document.getElementById('right-ghost-thumb');
+        if (!content || !track || !thumb) return;
+
+        const update = () => {
+            const viewH  = content.clientHeight;
+            const totalH = content.scrollHeight;
+            if (totalH <= viewH) { thumb.style.height = '0'; return; }
+
+            const thumbH  = Math.max(20, (viewH / totalH) * viewH);
+            const maxTop  = viewH - thumbH;
+            const scrollR = content.scrollTop / (totalH - viewH);
+
+            thumb.style.height = thumbH + 'px';
+            thumb.style.top    = (scrollR * maxTop) + 'px';
+        };
+
+        content.addEventListener('scroll', update);
+        window.addEventListener('resize', update);
+
+        // Update when right pane content changes (new command loaded)
+        new MutationObserver(update).observe(content, { childList: true, subtree: true });
+
+        // Drag thumb to scroll
+        let dragging = false, startY = 0, startScroll = 0;
+
+        thumb.addEventListener('mousedown', e => {
+            dragging = true;
+            startY = e.clientY;
+            startScroll = content.scrollTop;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const trackH      = track.clientHeight;
+            const thumbH      = thumb.offsetHeight;
+            const scrollRange = content.scrollHeight - content.clientHeight;
+            content.scrollTop = startScroll + (e.clientY - startY) * (scrollRange / (trackH - thumbH));
+        });
+
+        document.addEventListener('mouseup', () => { dragging = false; });
+    },
+
     // ── Boot + input init ─────────────────────────────────────────────────────
 
     init() {
+        // Enter during boot skips the animation and jumps to the end
+        const skipHandler = (e) => {
+            if (e.key === 'Enter' && Boot._running) {
+                e.preventDefault();
+                Boot.skip();
+            }
+        };
+        document.addEventListener('keydown', skipHandler);
+
         Boot.run(document.getElementById('output'), () => {
+            document.removeEventListener('keydown', skipHandler);
             document.getElementById('input-line').style.display = 'flex';
             CLI.showSuggestions();
             CLI.scrollBottom();

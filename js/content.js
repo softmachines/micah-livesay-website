@@ -28,13 +28,13 @@ const SITE_CONTENT = {
         [1400,  '   [DECK]   Ono-Sendai Cyberspace 7 ....................... OK', 'line-green'],
         [1600,  '   [ARRY]   Synchron Stentrode ............................ OK', 'line-green'],
         [1800,  '   [SIGAMP] Hosaka SA-11 Signal Amplifier ................. OK', 'line-green'],
-        [2000,  '   [GPU]    W.I.R.E Mk.III Shielded Optical Braid ......... OK', 'line-green'],
+        [2000,  '   [RIG]    W.I.R.E Mk.III Shielded Optical Braid ......... OK', 'line-green'],
         [2200,  '   [NET]    Distributed Consciousness Protocol ............ OK', 'line-green'],
         [2400,  '', ''],
         [2550,  '>> REQUESTING NEURAL HANDSHAKE @ HIVENET_GLOBAL...', 'line-dim'],
         [2800,  '   Entities traced..................................8.3 billion', 'line-green'],
         [3050,  '   Synchronising resonant signal........................ 7.83Hz', 'line-green'],
-        [3300,  '   Link signal encrytion ......................... THREADNEEDLE', 'line-green'],
+        [3300,  '   Link signal encryption ......................... THREADNEEDLE', 'line-green'],
         [3550,  '   HIVENET collective flagelation ................... INITIATED', 'line-green'],
         [3800,  '', ''],
         [3900,  '   >> WARNING: autonomous cognition detected', 'line-warning'],
@@ -78,7 +78,7 @@ const SITE_CONTENT = {
         [9500,  '', ''],
         [9700,  'System ready...', 'line-dim'],
         [9800,  '', ''],
-        [9950,  'Type a command from the list below.', 'line-green'],
+        [9950,  'Type a command from the list below and press Enter.', 'line-green'],
         [10100, '', ''],
     ],
 
@@ -121,20 +121,50 @@ const SITE_CONTENT = {
         // ── PROFILE ──────────────────────────────────────────────────────────
 
         profile: `
-## MICAH LIVESAY
-Audio Engineer & Sound Designer
+### MICAH LIVESAY
+// Sonic Artist // Audio Engineer
 
-Write your bio here. Each line becomes a line in the terminal.
-Write naturally — no special formatting needed for regular text.
+Hello. My name is Micah Livesay and I have a facination with sound. 
+A temporal and intangible medium...
+A negentropic pocket of order...
+A dissapative structure of vibrational energy that can be shaped to communicate meaning...
 
-Leave a blank line between paragraphs and it becomes a blank
-line in the terminal output.
+Inhabiting both techinical and creative diciplines is important as a practictionor. Letting one inform
+another core to my approach as an engineer and artist. 
+
+// Functonal Practice — Film and Television
+This part of my work involves recording, editing, designing and mixing sound for moving picture.
+Dialogue is where I've spent the majority of my time the last few years honing my skills as an editor,
+recordist and supervisor for feature films and scripted television. 
+
+My professional practice is based 
+on a strong understanding of post production dialogue workflows, the technical requirements to deliver
+what the project requires and a creative approach to enhancing a story through sound.
+
+<> 6+ years experience.
+<> Dialogue Edit, ADR, Loop Group, Supervision.
+
+// Conceptual Practice - Sonic Arts
+Sound is an event not an object. A sound wave by definition is not a static observation but a 
+temporal phenomenon. An manifestation of energy in a physical system over time.
+
+My conceptual practice explores system theory through building sonic expressions of a system's 
+structure, behavior, and the entities it governs.
+
+The world is a violent and chaotic place and our perception of this world relies on our organic 
+instrumentation to make sense of it. We are narrow band recievers in a reality of infinite bandwidth. 
+We use tools to expand our perception of systems we exist within but otherwise couldn't engage with.  
+
+A framework...
+instrumentation > data > hermeneutic translation > expression
 
 ---
-[Status]:       Available for work
-[Based]:        Your City
-[Specialties]:  Sound Design, Audio Engineering, Production
-[Credits]:      Add your credits here
+
+Type 'contact' to get in touch.
+
+[Based]:       in Auckland, New Zealand. Currently working across NZ, Australia, UK and the US.
+
+
         `,
 
 

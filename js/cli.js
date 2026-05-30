@@ -277,11 +277,7 @@ const CLI = {
             span.className = `line ${cls}`;
             span.textContent = text;
             content.appendChild(span);
-            content.appendChild(document.createElement('br'));
             SoundEngine.play('scroll_output');
-            requestAnimationFrame(() => {
-                if (content) content.scrollTop = content.scrollHeight;
-            });
         }, delay);
     },
 
@@ -291,9 +287,6 @@ const CLI = {
         setTimeout(() => {
             const content = document.getElementById('right-content');
             content.appendChild(el);
-            requestAnimationFrame(() => {
-                if (content) content.scrollTop = content.scrollHeight;
-            });
             if (onInserted) onInserted(el);
         }, delay);
     },
@@ -332,13 +325,11 @@ const CLI = {
 
     showProfile() {
         this._setRightHeader('[ PROFILE.SYS ]');
-        this.brRight();
         this.printParsed(SITE_CONTENT.pages.profile);
     },
 
     showPortfolio() {
         this._setRightHeader('[ PORTFOLIO.DAT ] — SELECTED WORKS');
-        this.brRight();
         SITE_CONTENT.pages.portfolio.forEach(p => {
             const item = document.createElement('div');
             item.className = 'portfolio-item';
@@ -355,7 +346,6 @@ const CLI = {
 
     showBlog() {
         this._setRightHeader('[ BLOG.LOG ] — SOUND DIARIES & ARTICLES');
-        this.brRight();
         SITE_CONTENT.pages.blog.forEach(p => {
             const div = document.createElement('div');
             div.className = 'blog-post';
@@ -454,7 +444,6 @@ const CLI = {
 
     showServices() {
         this._setRightHeader('[ SERVICES.SYS ]');
-        this.brRight();
         this.printParsed(SITE_CONTENT.pages.services);
     },
 
@@ -546,10 +535,14 @@ const CLI = {
                 return { text: '', cls: '' };
             if (line === '---')
                 return { text: '────────────────────────────────────────', cls: 'line-dim' };
+            if (line.startsWith('### '))
+                return { text: line.slice(4), cls: 'line-heading' };
             if (line.startsWith('## '))
                 return { text: line.slice(3), cls: 'line-pink' };
             if (line.startsWith('# '))
                 return { text: line.slice(2), cls: 'line-pink' };
+            if (line.startsWith('//'))
+                return { text: line, cls: 'line-cyan' };
             const kv = line.match(/^\[([^\]]+)\]:\s*(.*)$/);
             if (kv)
                 return { text: `  ${kv[1].padEnd(14)} ${kv[2]}`, cls: 'line-green' };

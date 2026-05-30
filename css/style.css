@@ -179,18 +179,18 @@ button, a, input, [role="button"] {
 .left-pane.compressing {
     animation: leftCompress 0.35s ease-out forwards;
 }
-.left-pane.compressed { width: 35%; }
+.left-pane.compressed { width: 40%; }
 
 @keyframes leftCompress {
     from { width: 100%; }
-    to   { width: 35%; }
+    to   { width: 40%; }
 }
 
 /* ─── PANE DIVIDER ────────────────────────────────────── */
 
 .pane-divider {
     position: absolute;
-    top: 0; left: 35%; bottom: 0;
+    top: 0; left: 40%; bottom: 0;
     width: 1px;
     z-index: 15;
     pointer-events: none;
@@ -227,7 +227,7 @@ button, a, input, [role="button"] {
 .right-pane {
     position: absolute;
     top: 0; bottom: 0;
-    left: calc(35% + 1px); right: 0;
+    left: calc(40% + 1px); right: 0;
     width: 0; opacity: 0;
     overflow: hidden;
     display: flex;
@@ -239,13 +239,13 @@ button, a, input, [role="button"] {
     animation: rightExpand 0.35s ease-out forwards;
 }
 .right-pane.expanded {
-    width: calc(65% - 1px);
+    width: calc(60% - 1px);
     opacity: 1;
 }
 
 @keyframes rightExpand {
     from { width:0; opacity:0; clip-path:inset(0 100% 0 0); }
-    to   { width:calc(65% - 1px); opacity:1; clip-path:inset(0 0% 0 0); }
+    to   { width:calc(60% - 1px); opacity:1; clip-path:inset(0 0% 0 0); }
 }
 
 /* Static burst canvas — covers full right pane (header + content) during switch */
@@ -277,13 +277,41 @@ button, a, input, [role="button"] {
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
+    line-height: 1.6;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
-.right-content { scrollbar-width: none; -ms-overflow-style: none; }
 .right-content::-webkit-scrollbar { display: none; }
+
+/* Ghost line custom scrollbar */
+#right-ghost-track {
+    position: absolute;
+    top: 0; right: 2px; bottom: 0;
+    width: 2px;
+    pointer-events: none;
+    z-index: 30;
+    opacity: 0.3;
+    transition: opacity 0.3s;
+}
+.right-pane:hover #right-ghost-track { opacity: 1; }
+
+#right-ghost-thumb {
+    position: absolute;
+    left: 0; right: 0;
+    min-height: 20px;
+    background: var(--green);
+    box-shadow: 0 0 5px var(--green), 0 0 10px rgba(0,255,65,0.4);
+    pointer-events: all;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+}
+#right-ghost-thumb:hover {
+    box-shadow: 0 0 8px var(--green), 0 0 18px rgba(0,255,65,0.6);
+}
 
 /* ─── OUTPUT / LINE STYLES ────────────────────────────── */
 
-.output { white-space: pre-wrap; word-break: break-word; }
+.output { white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
 
 .line { display: block; }
 
@@ -291,6 +319,15 @@ button, a, input, [role="button"] {
     color: var(--green);
     text-shadow: 0 0 3px rgba(0,255,65,0.95), 0 0 9px rgba(0,255,65,0.55), 0 0 22px rgba(0,255,65,0.2);
 }
+.line-heading {
+    color: var(--pink);
+    font-size: 1.5em;
+    text-shadow:
+        0 0 3px rgba(255,45,120,0.95),
+        0 0 10px rgba(255,45,120,0.65),
+        0 0 25px rgba(255,45,120,0.25);
+}
+
 .line-pink {
     color: var(--pink);
     text-shadow: 0 0 3px rgba(255,45,120,0.95), 0 0 10px rgba(255,45,120,0.65), 0 0 25px rgba(255,45,120,0.25);

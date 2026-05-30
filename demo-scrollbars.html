@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCROLLBAR DEMOS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green:  #00ff41;
+            --pink:   #ff2d78;
+            --cyan:   #00ffcc;
+            --bg:     #010802;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#000; font-family:'Share Tech Mono',monospace; color:var(--green); padding:32px; }
+        h1 { color:var(--pink); font-size:13px; letter-spacing:2px; text-shadow:0 0 10px rgba(255,45,120,0.5); margin-bottom:6px; }
+        .subtitle { color:#00b32c; font-size:11px; opacity:.65; margin-bottom:32px; }
+        .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:20px; }
+        .demo-block { display:flex; flex-direction:column; gap:10px; }
+        .label { font-size:11px; letter-spacing:1px; color:#00b32c; }
+        .label.c { color:var(--pink); text-shadow:0 0 6px rgba(255,45,120,.4); }
+        .tag { font-size:9px; border:1px solid var(--pink); color:var(--pink); padding:1px 5px; margin-left:4px; }
+
+        /* ── Scroll wrapper: hides native scrollbar, shows custom one ── */
+        .sw {
+            position: relative;
+            height: 320px;
+        }
+
+        /* The actual scrollable content — native scrollbar hidden */
+        .sc {
+            height: 100%;
+            overflow-y: scroll;
+            scrollbar-width: none;        /* Firefox */
+            -ms-overflow-style: none;     /* IE */
+            background: var(--bg);
+            border: 1px solid #001a06;
+            padding: 14px 24px 14px 14px; /* right padding leaves room for custom bar */
+            font-size: 12px;
+            line-height: 1.7;
+            color: #00b32c;
+        }
+        .sc::-webkit-scrollbar { display:none; } /* Chrome/Safari */
+        .sc .h { color:var(--pink); display:block; margin-bottom:8px; }
+        .sc p  { margin-bottom:8px; }
+
+        /* ── Custom scrollbar track (absolutely positioned) ── */
+        .sb-track {
+            position: absolute;
+            top: 1px; right: 1px; bottom: 1px;
+            width: 10px; /* default, overridden per style */
+            pointer-events: none;
+        }
+
+        /* ── Custom scrollbar thumb ── */
+        .sb-thumb {
+            position: absolute;
+            left: 0; right: 0;
+            min-height: 20px;
+            cursor: pointer;
+            pointer-events: all;
+        }
+
+        /* ── STYLE 1: Ghost Line ─────────────────── */
+        .t1 { width: 2px; background: transparent; right: 4px; }
+        .t1 .sb-thumb {
+            background: var(--green);
+            box-shadow: 0 0 5px var(--green), 0 0 10px rgba(0,255,65,.4);
+        }
+
+        /* ── STYLE 2: Segmented ──────────────────── */
+        .t2 { width: 10px; background: #010802; border-left: 1px solid #002008; }
+        .t2 .sb-thumb {
+            background: repeating-linear-gradient(
+                to bottom,
+                var(--green) 0px, var(--green) 5px,
+                transparent  5px, transparent  9px
+            );
+        }
+
+        /* ── STYLE 3: Channel Rail ───────────────── */
+        .t3 { width: 12px; background: #010802; border-left:1px solid #002008; border-right:1px solid #002008; }
+        .t3 .sb-thumb {
+            background: var(--green);
+            border-left:  4px solid #010802;
+            border-right: 4px solid #010802;
+            box-shadow: 0 0 5px rgba(0,255,65,.6);
+        }
+
+        /* ── STYLE 4: Neon Blade (creative) ─────── */
+        .t4 { width: 16px; background: transparent; }
+        .t4 .sb-thumb {
+            background: linear-gradient(
+                to right,
+                transparent 0%, rgba(0,255,65,.15) 20%,
+                rgba(0,255,65,.65) 38%, #00ff41 50%,
+                rgba(0,255,65,.65) 62%, rgba(0,255,65,.15) 80%,
+                transparent 100%
+            );
+            animation: bladePulse 2.5s ease-in-out infinite;
+        }
+        @keyframes bladePulse {
+            0%,100% { box-shadow: 0 0 6px rgba(0,255,65,.8), 0 0 14px rgba(0,255,65,.3); }
+            50%     { box-shadow: 0 0 12px rgba(0,255,65,1), 0 0 28px rgba(0,255,65,.6), 0 0 50px rgba(0,255,65,.2); }
+        }
+
+        /* ── STYLE 5: CA Glitch (creative) ──────── */
+        .t5 {
+            width: 6px;
+            background: repeating-linear-gradient(
+                to bottom,
+                #001a06 0px, #001a06 13px,
+                #010802 13px, #010802 14px
+            );
+        }
+        .t5 .sb-thumb {
+            background: var(--green);
+            animation: caShift 1.6s linear infinite;
+        }
+        @keyframes caShift {
+            0%  { box-shadow: -4px 0 0 rgba(255,45,120,.95),  4px 0 0 rgba(0,255,204,.95); }
+            50% { box-shadow:  4px 0 0 rgba(255,45,120,.95), -4px 0 0 rgba(0,255,204,.95); }
+            100%{ box-shadow: -4px 0 0 rgba(255,45,120,.95),  4px 0 0 rgba(0,255,204,.95); }
+        }
+
+        .back-link { display:inline-block; margin-top:32px; color:#00b32c; font-size:11px; opacity:.5; text-decoration:none; }
+        .back-link:hover { opacity:1; }
+    </style>
+</head>
+<body>
+
+<h1>// SCROLLBAR STYLE DEMOS</h1>
+<p class="subtitle">JavaScript custom scrollbars — works in all browsers. Scroll inside each panel.</p>
+
+<div class="grid">
+
+    <div class="demo-block">
+        <span class="label">1 — Ghost Line</span>
+        <div class="sw">
+            <div class="sc" data-sb="t1">
+                <span class="h">[ PROFILE.SYS ]</span>
+                <p>Ultra-minimal 2px glowing line. Near invisible — presence hinted rather than shown.</p>
+                <p>Works best for content-heavy pages where UI should disappear. Keeps full terminal immersion.</p>
+                <p>The faint phosphor glow is the only visual indicator of scroll position.</p>
+                <p>Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.</p>
+                <p>Ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco.</p>
+                <p>Laboris nisi aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit.</p>
+                <p>In voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat.</p>
+                <p>Cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque.</p>
+            </div>
+            <div class="sb-track t1"><div class="sb-thumb"></div></div>
+        </div>
+    </div>
+
+    <div class="demo-block">
+        <span class="label">2 — Segmented</span>
+        <div class="sw">
+            <div class="sc" data-sb="t2">
+                <span class="h">[ PROFILE.SYS ]</span>
+                <p>Dashed thumb in a dark channel. Looks like a tape counter or old-school progress indicator.</p>
+                <p>The gaps between dashes add rhythm. Strongly terminal — feels like a text-mode UI status bar.</p>
+                <p>Good contrast between track and thumb without demanding attention.</p>
+                <p>Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.</p>
+                <p>Ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco.</p>
+                <p>Laboris nisi aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit.</p>
+                <p>In voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat.</p>
+                <p>Cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque.</p>
+            </div>
+            <div class="sb-track t2"><div class="sb-thumb"></div></div>
+        </div>
+    </div>
+
+    <div class="demo-block">
+        <span class="label">3 — Channel Rail</span>
+        <div class="sw">
+            <div class="sc" data-sb="t3">
+                <span class="h">[ PROFILE.SYS ]</span>
+                <p>Double-border track with inset thumb. The thumb rides a physical channel — like a mixing console fader.</p>
+                <p>Mechanical and precise. The border treatment gives clear bounds to the scroll zone.</p>
+                <p>Thicker than the ghost line but still refined. Works well for content-heavy pages.</p>
+                <p>Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.</p>
+                <p>Ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco.</p>
+                <p>Laboris nisi aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit.</p>
+                <p>In voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat.</p>
+                <p>Cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque.</p>
+            </div>
+            <div class="sb-track t3"><div class="sb-thumb"></div></div>
+        </div>
+    </div>
+
+    <div class="demo-block">
+        <span class="label c">4 — Neon Blade <span class="tag">CREATIVE</span></span>
+        <div class="sw">
+            <div class="sc" data-sb="t4">
+                <span class="h">[ PROFILE.SYS ]</span>
+                <p>No track — just a blade of light. Bright centre diffuses to transparent edges, floating in space.</p>
+                <p>Pulses slowly like a phosphor signal. Animated glow breathes on a 2.5s loop.</p>
+                <p>Feels like a HUD element from a sci-fi interface. The scrollbar appears to hover.</p>
+                <p>Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.</p>
+                <p>Ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco.</p>
+                <p>Laboris nisi aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit.</p>
+                <p>In voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat.</p>
+                <p>Cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque.</p>
+            </div>
+            <div class="sb-track t4"><div class="sb-thumb"></div></div>
+        </div>
+    </div>
+
+    <div class="demo-block">
+        <span class="label c">5 — CA Glitch <span class="tag">CREATIVE</span></span>
+        <div class="sw">
+            <div class="sc" data-sb="t5">
+                <span class="h">[ PROFILE.SYS ]</span>
+                <p>Chromatic aberration on the thumb — pink and cyan shadows alternate continuously, matching the site's glitch language.</p>
+                <p>Tick-mark track looks like a ruler or tape transport. Thumb appears to glitch left-right as CA cycles.</p>
+                <p>Most distinctive — immediately part of the same visual system as the site's other effects.</p>
+                <p>Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.</p>
+                <p>Ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco.</p>
+                <p>Laboris nisi aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit.</p>
+                <p>In voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat.</p>
+                <p>Cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque.</p>
+            </div>
+            <div class="sb-track t5"><div class="sb-thumb"></div></div>
+        </div>
+    </div>
+
+</div>
+
+<a class="back-link" href="index.html">&larr; back to terminal</a>
+
+<script>
+    // Sync custom scrollbar thumbs with scroll position
+    document.querySelectorAll('.sc').forEach(sc => {
+        const wrapper = sc.parentElement;
+        const track   = wrapper.querySelector('.sb-track');
+        const thumb   = track.querySelector('.sb-thumb');
+
+        const update = () => {
+            const visibleRatio  = sc.clientHeight / sc.scrollHeight;
+            const thumbHeight   = Math.max(20, track.clientHeight * visibleRatio);
+            const maxThumbTop   = track.clientHeight - thumbHeight;
+            const scrollRatio   = sc.scrollTop / (sc.scrollHeight - sc.clientHeight);
+            const thumbTop      = scrollRatio * maxThumbTop;
+
+            thumb.style.height = thumbHeight + 'px';
+            thumb.style.top    = thumbTop + 'px';
+        };
+
+        sc.addEventListener('scroll', update);
+        window.addEventListener('resize', update);
+        update();
+
+        // Drag to scroll
+        let dragging = false, startY = 0, startScroll = 0;
+
+        thumb.addEventListener('mousedown', e => {
+            dragging = true;
+            startY = e.clientY;
+            startScroll = sc.scrollTop;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const delta       = e.clientY - startY;
+            const trackH      = track.clientHeight;
+            const thumbH      = thumb.offsetHeight;
+            const scrollRange = sc.scrollHeight - sc.clientHeight;
+            sc.scrollTop      = startScroll + delta * (scrollRange / (trackH - thumbH));
+        });
+
+        document.addEventListener('mouseup', () => { dragging = false; });
+    });
+</script>
+</body>
+</html>
