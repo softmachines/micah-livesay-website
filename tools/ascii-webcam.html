@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII WEBCAM</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+    --green:  #00ff41;
+    --gdim:   #00b32c;
+    --gdark:  #003d0f;
+    --pink:   #ff2d78;
+    --cyan:   #00ffcc;
+    --bg:     #010802;
+    --panel:  #060e07;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:#000;font-family:'Share Tech Mono',monospace;color:var(--green);font-size:13px;}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:260px 1fr;height:100vh;}
+.header{grid-column:1/-1;background:var(--bg);border-bottom:1px solid var(--gdark);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.header h1{color:var(--pink);font-size:13px;letter-spacing:2px;text-shadow:0 0 8px rgba(255,45,120,.5);}
+.hbtns{display:flex;align-items:center;gap:8px;}
+.sidebar{background:var(--panel);border-right:1px solid var(--gdark);overflow-y:auto;padding:0;}
+.sidebar::-webkit-scrollbar{width:2px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--gdark);}
+.main{background:#000;display:flex;flex-direction:column;overflow:hidden;}
+.statusbar{grid-column:1/-1;background:var(--bg);border-top:1px solid var(--gdark);padding:4px 18px;color:var(--gdim);font-size:11px;display:flex;gap:24px;}
+
+/* ── SIDEBAR ── */
+.section{border-bottom:1px solid var(--gdark);}
+.section-head{padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;color:var(--green);font-size:12px;letter-spacing:1px;text-shadow:0 0 6px rgba(0,255,65,.4);}
+.section-head .arrow{transition:transform .15s;display:inline-block;}
+.section-head.open .arrow{transform:rotate(90deg);}
+.section-body{padding:10px 12px;display:none;}
+.section-body.open{display:block;}
+.ctrl{margin-bottom:8px;}
+.ctrl label{display:flex;justify-content:space-between;flex-wrap:wrap;color:var(--gdim);font-size:11px;margin-bottom:3px;}
+.ctrl input[type=range]{width:100%;accent-color:var(--green);}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 5px rgba(0,255,65,.6);}
+.radio-group{display:flex;flex-direction:column;gap:4px;}
+.radio-group label{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--gdim);font-size:11px;}
+.radio-group input,.check-row input{accent-color:var(--green);}
+.check-row{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--gdim);font-size:11px;margin-bottom:6px;}
+select.ctrl-select{width:100%;background:var(--bg);border:1px solid var(--gdark);color:var(--green);font-family:inherit;font-size:11px;padding:3px 5px;outline:none;cursor:pointer;}
+select.ctrl-select:focus{border-color:var(--green);}
+textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--gdark);color:var(--green);font-family:inherit;font-size:11px;padding:4px;resize:none;height:40px;outline:none;}
+
+/* ── BUTTONS ── */
+.btn{background:transparent;border:1px solid var(--pink);color:var(--pink);font-family:inherit;font-size:11px;padding:4px 12px;cursor:pointer;text-shadow:0 0 5px rgba(255,45,120,.4);transition:background .1s;text-decoration:none;display:inline-block;}
+.btn:hover{background:rgba(255,45,120,.12);}
+.btn.green{border-color:var(--green);color:var(--green);text-shadow:0 0 5px rgba(0,255,65,.4);}
+.btn.green:hover{background:rgba(0,255,65,.08);}
+.btn.green.active{background:rgba(0,255,65,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none;}
+
+/* ── PREVIEW ── */
+.preview-wrap{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;position:relative;}
+#asciiCanvas{display:block;image-rendering:pixelated;}
+.no-camera{color:var(--gdim);text-align:center;pointer-events:none;}
+.no-camera .nc-icon{font-size:40px;margin-bottom:12px;opacity:.3;}
+
+/* ── CRT ── */
+@keyframes crtDrift{
+    0%  {transform:translate(0,0)}   12% {transform:translate(.5px,0)}
+    28% {transform:translate(-.3px,.15px)} 44%{transform:translate(.4px,-.1px)}
+    58% {transform:translate(-.5px,0)} 72%{transform:translate(.2px,.1px)}
+    88% {transform:translate(-.1px,-.05px)} 100%{transform:translate(0,0)}
+}
+#asciiCanvas{animation:crtDrift 20s ease-in-out infinite;}
+@keyframes scanBand{from{transform:translateY(-100%)}to{transform:translateY(100%)}}
+.preview-wrap::before{content:'';position:absolute;inset:0;will-change:transform;
+    background:linear-gradient(to bottom,transparent 42%,rgba(0,255,65,.008) 46%,rgba(0,255,65,.02) 50%,rgba(0,255,65,.008) 54%,transparent 58%);
+    pointer-events:none;z-index:16;animation:scanBand 16s linear infinite;}
+@keyframes crtFlicker{0%,100%{opacity:0}19%{opacity:0}19.5%{opacity:1}20%{opacity:0}41%{opacity:0}41.4%{opacity:.7}41.8%{opacity:0}79%{opacity:0}79.3%{opacity:.5}79.6%{opacity:0}}
+.preview-wrap::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.04);pointer-events:none;z-index:17;animation:crtFlicker 8s steps(1) infinite;}
+.crt-glass{position:absolute;inset:0;pointer-events:none;z-index:18;
+    background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 60%,rgba(0,0,0,.25) 100%),
+               repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header class="header">
+    <h1>ASCII // WEBCAM</h1>
+    <div class="hbtns">
+        <span style="color:var(--gdim);font-size:11px;min-width:48px;text-align:right;" id="fpsCounter">— fps</span>
+        <button class="btn green" id="btnCamera">[ START CAMERA ]</button>
+        <button class="btn" id="btnSnapshot" disabled>[ SNAPSHOT ]</button>
+        <button class="btn" id="btnShare" onclick="saveSettings()">[ SAVE SETTINGS ]</button>
+        <button class="btn" id="btnFullscreen">[ ⛶ ]</button>
+        <a href="ascii-converter.html" class="btn">[ ← CONVERTER ]</a>
+    </div>
+</header>
+
+<!-- ── SIDEBAR ── -->
+<div class="sidebar">
+
+    <!-- Camera source -->
+    <div class="section">
+        <div class="section-head open" data-target="s-cam"><span>CAMERA</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-cam">
+            <div class="check-row">
+                <input type="checkbox" id="mirror" checked>
+                <label for="mirror">Mirror (flip horizontal)</label>
+            </div>
+            <div class="ctrl" style="margin-top:2px;">
+                <label style="margin-bottom:4px;">Source device</label>
+                <select id="cameraSource" class="ctrl-select">
+                    <option value="">— start camera first —</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resolution -->
+    <div class="section">
+        <div class="section-head open" data-target="s-res"><span>RESOLUTION</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-res">
+            <div class="ctrl">
+                <label>Columns <span id="colsVal">80</span></label>
+                <input type="range" id="cols" min="20" max="200" value="80">
+            </div>
+            <div style="font-size:10px;color:var(--gdim);">Rows (auto from camera): <span id="rowsVal">—</span></div>
+        </div>
+    </div>
+
+    <!-- Size & spacing -->
+    <div class="section">
+        <div class="section-head" data-target="s-size"><span>SIZE &amp; SPACING</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-size">
+            <div class="ctrl">
+                <label>Character size <span id="charSizeVal">2</span>px</label>
+                <input type="range" id="charSize" min="1" max="48" value="2">
+            </div>
+            <div class="ctrl">
+                <label>H spacing <span id="charSpacingHVal">0</span>px
+                    <span style="font-size:9px;color:var(--gdark);">← expand | compress →</span>
+                </label>
+                <input type="range" id="charSpacingH" min="-16" max="16" value="0">
+            </div>
+            <div class="ctrl">
+                <label>V spacing <span id="charSpacingVVal">1</span>px
+                    <span style="font-size:9px;color:var(--gdark);">← expand | compress →</span>
+                </label>
+                <input type="range" id="charSpacingV" min="-16" max="16" value="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- Tone -->
+    <div class="section">
+        <div class="section-head" data-target="s-tone"><span>TONE</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-tone">
+            <div class="ctrl">
+                <label>Brightness <span id="brightnessVal">0.00</span></label>
+                <input type="range" id="brightness" min="-1" max="1" step="0.05" value="0">
+            </div>
+            <div class="ctrl">
+                <label>Contrast <span id="contrastVal">1.00</span></label>
+                <input type="range" id="contrast" min="0.1" max="4" step="0.05" value="1">
+            </div>
+            <div class="ctrl">
+                <label>Gamma <span id="gammaVal">1.00</span></label>
+                <input type="range" id="gamma" min="0.3" max="3" step="0.05" value="1">
+            </div>
+            <div class="ctrl">
+                <label>Black point <span id="blackPtVal">0</span></label>
+                <input type="range" id="blackPt" min="0" max="200" value="0">
+            </div>
+            <div class="ctrl">
+                <label>White point <span id="whitePtVal">255</span></label>
+                <input type="range" id="whitePt" min="55" max="255" value="255">
+            </div>
+            <div class="ctrl">
+                <label>Edge boost <span id="edgeBoostVal">0</span>%</label>
+                <input type="range" id="edgeBoost" min="0" max="100" value="0">
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="invert">
+                <label for="invert">Invert</label>
+            </div>
+            <div style="font-size:10px;color:var(--gdim);margin:8px 0 4px;letter-spacing:1px;">TONAL RANGE
+                <span style="color:var(--gdark);font-size:9px;"> ← darken | brighten →</span>
+            </div>
+            <div class="ctrl">
+                <label>Highlights <span id="highlightsVal">0</span></label>
+                <input type="range" id="highlights" min="-50" max="50" value="0">
+            </div>
+            <div class="ctrl">
+                <label>Midtones <span id="midtonesVal">0</span></label>
+                <input type="range" id="midtones" min="-50" max="50" value="0">
+            </div>
+            <div class="ctrl">
+                <label>Shadows <span id="shadowsVal">0</span></label>
+                <input type="range" id="shadows" min="-50" max="50" value="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- Colour mode -->
+    <div class="section">
+        <div class="section-head" data-target="s-color"><span>COLOUR MODE</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-color">
+            <div class="radio-group">
+                <label><input type="radio" name="colorMode" value="mono" checked> Mono green</label>
+                <label><input type="radio" name="colorMode" value="twotone"> Two-tone green</label>
+                <label><input type="radio" name="colorMode" value="palette"> Site palette (pink/cyan/green)</label>
+                <label><input type="radio" name="colorMode" value="rgb"> Full RGB</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Character set -->
+    <div class="section">
+        <div class="section-head" data-target="s-chars"><span>CHARACTER SET</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-chars">
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="charSet" value="standard" checked> Standard density</label>
+                <label><input type="radio" name="charSet" value="block"> Block (░▒▓█)</label>
+                <label><input type="radio" name="charSet" value="halfblock"> Half-block (▀▄▌▐)</label>
+                <label><input type="radio" name="charSet" value="binary"> Binary (0 1)</label>
+                <label><input type="radio" name="charSet" value="custom"> Custom</label>
+            </div>
+            <div id="customCharsWrap" style="display:none;">
+                <div style="font-size:10px;color:var(--gdim);margin-bottom:3px;">Characters (dark → bright):</div>
+                <textarea class="custom-chars" id="customChars"> .:-=+*#%@</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Glow -->
+    <div class="section">
+        <div class="section-head" data-target="s-glow"><span>GLOW</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-glow">
+            <div class="check-row">
+                <input type="checkbox" id="glowOn" checked>
+                <label for="glowOn">Enable glow</label>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="glowLuma">
+                <label for="glowLuma">Luma-driven intensity</label>
+            </div>
+            <div class="ctrl">
+                <label>Response curve γ <span id="glowGammaVal">1.0</span>
+                    <span style="font-size:9px;color:var(--gdark);">shadows ← | → highlights</span>
+                </label>
+                <input type="range" id="glowGamma" min="0.1" max="4" step="0.1" value="1">
+            </div>
+            <div class="ctrl">
+                <label>Blur radius <span id="glowBlurVal">6</span>px</label>
+                <input type="range" id="glowBlur" min="1" max="30" value="6">
+            </div>
+            <div class="ctrl">
+                <label>Intensity <span id="glowAlphaVal">0.70</span></label>
+                <input type="range" id="glowAlpha" min="0.1" max="1" step="0.05" value="0.7">
+            </div>
+        </div>
+    </div>
+
+    <!-- Chromatic aberration -->
+    <div class="section">
+        <div class="section-head" data-target="s-ca"><span>CHROMATIC ABERRATION</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-ca">
+            <div class="check-row">
+                <input type="checkbox" id="caOn">
+                <label for="caOn">Enable CA</label>
+            </div>
+            <div class="ctrl">
+                <label>Spread <span id="caSpreadVal">2</span>px</label>
+                <input type="range" id="caSpread" min="1" max="12" value="2">
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="caAnimated">
+                <label for="caAnimated">Animated shift</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlays -->
+    <div class="section">
+        <div class="section-head" data-target="s-overlay"><span>OVERLAYS</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-overlay">
+            <div class="check-row">
+                <input type="checkbox" id="scanlines">
+                <label for="scanlines">Scanline overlay</label>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="vignette">
+                <label for="vignette">Vignette</label>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /sidebar -->
+
+<!-- ── MAIN PREVIEW ── -->
+<div class="main">
+    <div class="preview-wrap" id="previewWrap">
+        <div class="no-camera" id="noCamera">
+            <div class="nc-icon">◉</div>
+            <div>Click [ START CAMERA ] to begin</div>
+            <div style="font-size:10px;margin-top:8px;color:var(--gdark);">Requires camera permission + HTTPS</div>
+        </div>
+        <canvas id="asciiCanvas" style="display:none;"></canvas>
+        <canvas id="asciiBloom"  style="display:none;position:absolute;pointer-events:none;mix-blend-mode:screen;"></canvas>
+        <div class="crt-glass"></div>
+    </div>
+</div>
+
+<!-- ── STATUS ── -->
+<div class="statusbar">
+    <span id="statusMsg">Camera off</span>
+    <span id="resInfo">—</span>
+</div>
+
+</div><!-- /app -->
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────
+const state = {
+    cols:         80,
+    rows:         45,
+    charSize:     2,
+    charSpacingH: 0,
+    charSpacingV: 1,
+    colorMode:    'mono',
+    charSet:      'standard',
+    customChars:  ' .:-=+*#%@',
+    mirror:       true,
+    brightness:   0,
+    contrast:     1,
+    gamma:        1,
+    blackPt:      0,
+    whitePt:      255,
+    edgeBoost:    0,
+    invert:       false,
+    highlights:   0,
+    midtones:     0,
+    shadows:      0,
+    glowOn:       true,
+    glowLuma:     false,
+    glowGamma:    1.0,
+    glowBlur:     6,
+    glowAlpha:    0.7,
+    caOn:         false,
+    caSpread:     2,
+    caAnimated:   false,
+    caPhase:      0,
+    scanlines:    false,
+    vignette:     false,
+};
+
+// ─────────────────────────────────────────────────────────────────
+// CHARACTER SETS & HELPERS
+// ─────────────────────────────────────────────────────────────────
+const CHAR_SETS = {
+    standard:  ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
+    block:     ' ░▒▓█',
+    halfblock: ' ▏▎▍▌▋▊▉█▀▄▌▐',
+    binary:    ' 01',
+};
+
+function getChars() {
+    if (state.charSet === 'custom') return state.customChars || ' .:-=+*#%@';
+    return CHAR_SETS[state.charSet] || CHAR_SETS.standard;
+}
+
+function brightnessToChar(luma, chars) {
+    return chars[Math.max(0, Math.min(chars.length - 1, Math.floor(luma * (chars.length - 1))))];
+}
+
+function getColor(luma, r, g, b) {
+    switch (state.colorMode) {
+        case 'mono':    return '#00ff41';
+        case 'twotone': return luma > 0.5 ? '#00ff41' : '#00b32c';
+        case 'palette':
+            if (luma < 0.33) return '#00b32c';
+            if (luma < 0.66) return '#00ffcc';
+            return '#ff2d78';
+        case 'rgb':
+            return `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+        default: return '#00ff41';
+    }
+}
+
+function hexToRgb(hex) {
+    if (hex.startsWith('rgb')) {
+        const m = hex.match(/\d+/g);
+        return m ? [+m[0], +m[1], +m[2]] : [0, 255, 65];
+    }
+    return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TONE LUT
+// ─────────────────────────────────────────────────────────────────
+let _toneLUT   = new Float32Array(256);
+let _toneDirty = true;
+
+function markToneDirty() { _toneDirty = true; }
+
+function buildToneLUT() {
+    const { brightness, contrast, gamma, blackPt, whitePt, invert,
+            highlights, midtones, shadows } = state;
+    const range = (whitePt - blackPt) || 1;
+    for (let i = 0; i < 256; i++) {
+        let v = (i - blackPt) / range;
+        v = Math.max(0, Math.min(1, v));
+        v = Math.pow(v, 1 / gamma);
+        v = (v - 0.5) * contrast + 0.5 + brightness;
+        const sh = Math.max(0, 1 - v / 0.4);
+        const hi = Math.max(0, (v - 0.6) / 0.4);
+        const mi = Math.max(0, 1 - sh - hi);
+        v += (sh * shadows + mi * midtones + hi * highlights) / 100;
+        if (invert) v = 1 - v;
+        _toneLUT[i] = Math.max(0, Math.min(1, v));
+    }
+    _toneDirty = false;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EDGE BOOST  (Sobel on tiny cols×rows grid — very fast)
+// ─────────────────────────────────────────────────────────────────
+function applyEdgeBoost(luma, cols, rows, strength) {
+    const out = new Float32Array(cols * rows);
+    const kx  = [-1,0,1,-2,0,2,-1,0,1];
+    const ky  = [-1,-2,-1,0,0,0,1,2,1];
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            let gx = 0, gy = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = Math.max(0, Math.min(cols-1, x+dx));
+                    const ny = Math.max(0, Math.min(rows-1, y+dy));
+                    const v  = luma[ny*cols+nx];
+                    const ki = (dy+1)*3 + (dx+1);
+                    gx += v*kx[ki]; gy += v*ky[ki];
+                }
+            }
+            out[y*cols+x] = Math.min(1, luma[y*cols+x] + Math.min(1, Math.sqrt(gx*gx+gy*gy)/4) * strength);
+        }
+    }
+    return out;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CAMERA
+// ─────────────────────────────────────────────────────────────────
+let videoEl      = null;
+let camStream    = null;
+let sampleCanvas = null;
+let sampleCtx    = null;
+let animFrame    = null;
+let running      = false;
+let streamAR     = 16 / 9;
+
+async function startCamera(deviceId) {
+    try {
+        if (camStream) _teardownStream();
+
+        const constraints = {
+            video: {
+                width: { ideal: 1280 }, height: { ideal: 720 },
+                ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }),
+            },
+            audio: false,
+        };
+        camStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        if (!videoEl) {
+            videoEl = document.createElement('video');
+            videoEl.autoplay = true; videoEl.playsInline = true; videoEl.muted = true;
+        }
+        videoEl.srcObject = camStream;
+        await videoEl.play();
+
+        const track  = camStream.getVideoTracks()[0];
+        const s      = track.getSettings();
+        streamAR     = (s.width || 1280) / (s.height || 720);
+        _updateRows();
+        _rebuildSampleCanvas();
+
+        running = true;
+        document.getElementById('asciiCanvas').style.display = 'block';
+        document.getElementById('noCamera').style.display    = 'none';
+        document.getElementById('btnCamera').textContent     = '[ STOP CAMERA ]';
+        document.getElementById('btnCamera').classList.add('active');
+        document.getElementById('btnSnapshot').disabled      = false;
+        setStatus('Camera active');
+        resizeCanvas();
+
+        _fpsLast = performance.now(); _fpsFrames = 0;
+        animFrame = requestAnimationFrame(renderLoop);
+
+        track.addEventListener('ended', () => {
+            stopCamera(); setStatus('Camera disconnected');
+        });
+
+        await _populateCameraList(track.getSettings().deviceId);
+
+    } catch (err) {
+        setStatus(`Camera error: ${err.message}`);
+    }
+}
+
+function stopCamera() {
+    running = false;
+    if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+    _teardownStream();
+    document.getElementById('asciiCanvas').style.display = 'none';
+    document.getElementById('noCamera').style.display    = '';
+    document.getElementById('btnCamera').textContent     = '[ START CAMERA ]';
+    document.getElementById('btnCamera').classList.remove('active');
+    document.getElementById('btnSnapshot').disabled      = true;
+    document.getElementById('fpsCounter').textContent    = '— fps';
+    setStatus('Camera off');
+}
+
+function _teardownStream() {
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+    if (videoEl)   { videoEl.srcObject = null; }
+}
+
+async function _populateCameraList(activeId) {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const sel = document.getElementById('cameraSource');
+        sel.innerHTML = '';
+        devices.filter(d => d.kind === 'videoinput').forEach((d, i) => {
+            const opt = document.createElement('option');
+            opt.value = d.deviceId;
+            opt.textContent = d.label || `Camera ${i + 1}`;
+            if (d.deviceId === activeId) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    } catch (_) {}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SIZING
+// ─────────────────────────────────────────────────────────────────
+function _charCells() {
+    return {
+        w: Math.max(0.5, state.charSize * 0.6 + state.charSpacingH),
+        h: Math.max(0.5, state.charSize       + state.charSpacingV),
+    };
+}
+
+function _updateRows() {
+    const { w, h } = _charCells();
+    state.rows = Math.max(1, Math.round(state.cols * w / (h * streamAR)));
+    document.getElementById('rowsVal').textContent = state.rows;
+}
+
+function _rebuildSampleCanvas() {
+    sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width  = state.cols;
+    sampleCanvas.height = state.rows;
+    // willReadFrequently tells the browser to keep pixels CPU-accessible
+    sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+}
+
+function resizeCanvas() {
+    if (!running) return;
+    const wrap   = document.getElementById('previewWrap');
+    const canvas = document.getElementById('asciiCanvas');
+    const { w: cw, h: ch } = _charCells();
+    const natW   = state.cols * cw;
+    const natH   = state.rows * ch;
+    const maxW   = wrap.clientWidth  - 8;
+    const maxH   = wrap.clientHeight - 8;
+    // No 2× cap — scale up to fill the available space
+    const scale  = Math.min(maxW / natW, maxH / natH);
+    canvas.width  = Math.round(natW * scale);
+    canvas.height = Math.round(natH * scale);
+    canvas._previewScale = scale;
+    document.getElementById('resInfo').textContent = `${state.cols} × ${state.rows} chars`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FPS
+// ─────────────────────────────────────────────────────────────────
+let _fpsFrames = 0, _fpsLast = 0;
+
+function _tickFPS(ts) {
+    _fpsFrames++;
+    if (ts - _fpsLast >= 500) {
+        const fps = Math.round(_fpsFrames * 1000 / (ts - _fpsLast));
+        document.getElementById('fpsCounter').textContent = fps + ' fps';
+        _fpsFrames = 0;
+        _fpsLast   = ts;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER LOOP
+// ─────────────────────────────────────────────────────────────────
+function renderLoop(ts) {
+    if (!running) return;
+    animFrame = requestAnimationFrame(renderLoop);
+    if (!videoEl || videoEl.readyState < 2) return;
+
+    _tickFPS(ts);
+
+    const cols  = state.cols;
+    const rows  = state.rows;
+    const cells = cols * rows;
+
+    // ── 1. Downsample webcam to tiny sample canvas (the key perf trick) ──
+    sampleCtx.save();
+    if (state.mirror) { sampleCtx.translate(cols, 0); sampleCtx.scale(-1, 1); }
+    sampleCtx.drawImage(videoEl, 0, 0, cols, rows);
+    sampleCtx.restore();
+
+    const px = sampleCtx.getImageData(0, 0, cols, rows).data;
+
+    // ── 2. Extract per-cell luma and colour ──
+    const lumaRaw = new Float32Array(cells);
+    const rMap    = new Float32Array(cells);
+    const gMap    = new Float32Array(cells);
+    const bMap    = new Float32Array(cells);
+    for (let i = 0; i < cells; i++) {
+        const r = px[i*4]   / 255;
+        const g = px[i*4+1] / 255;
+        const b = px[i*4+2] / 255;
+        lumaRaw[i] = 0.299*r + 0.587*g + 0.114*b;
+        rMap[i] = r; gMap[i] = g; bMap[i] = b;
+    }
+
+    // ── 3. Edge boost + tone LUT ──
+    const boosted = state.edgeBoost > 0
+        ? applyEdgeBoost(lumaRaw, cols, rows, state.edgeBoost / 100)
+        : lumaRaw;
+    if (_toneDirty) buildToneLUT();
+    const finalLuma = new Float32Array(cells);
+    for (let i = 0; i < cells; i++) {
+        finalLuma[i] = _toneLUT[Math.min(255, Math.round(boosted[i] * 255))];
+    }
+
+    // ── 4. Draw ASCII characters ──
+    const canvas = document.getElementById('asciiCanvas');
+    const ctx    = canvas.getContext('2d');
+    const scale  = canvas._previewScale || 1;
+    const cw     = (state.charSize * 0.6 + state.charSpacingH) * scale;
+    const ch     = (state.charSize       + state.charSpacingV)  * scale;
+    const fontSize = Math.max(1, state.charSize * scale);
+    const chars    = getChars();
+    const caOffset = state.caOn
+        ? (state.caAnimated ? Math.sin(state.caPhase) * state.caSpread : state.caSpread)
+        : 0;
+    if (state.caOn && state.caAnimated) state.caPhase += 0.12;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = `${fontSize}px 'Share Tech Mono', monospace`;
+    ctx.textBaseline = 'top';
+
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            const i    = row * cols + col;
+            const luma = finalLuma[i];
+            const char = brightnessToChar(luma, chars);
+            if (!char.trim()) continue;
+            const x     = col * cw;
+            const y     = row * ch;
+            const color = getColor(luma, rMap[i], gMap[i], bMap[i]);
+
+            if (state.caOn && caOffset > 0) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                const [lr, lg, lb] = hexToRgb(color);
+                ctx.fillStyle = `rgba(${lr},0,0,0.9)`;   ctx.fillText(char, x - caOffset, y);
+                ctx.fillStyle = `rgba(0,${lg},0,0.9)`;   ctx.fillText(char, x, y);
+                ctx.fillStyle = `rgba(0,0,${lb},0.9)`;   ctx.fillText(char, x + caOffset, y);
+                ctx.restore();
+            } else {
+                ctx.fillStyle   = color;
+                ctx.globalAlpha = 0.3 + Math.pow(luma, state.glowGamma) * 0.7;
+                ctx.fillText(char, x, y);
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+
+    // ── 5. Scanlines ──
+    if (state.scanlines) {
+        ctx.save();
+        for (let y = 0; y < canvas.height; y += 2) {
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(0, y, canvas.width, 1);
+        }
+        ctx.restore();
+    }
+
+    // ── 6. Bloom glow ──
+    const bloom = document.getElementById('asciiBloom');
+    if (state.glowOn && bloom) {
+        const bw = Math.max(1, Math.ceil(canvas.width  * 0.25));
+        const bh = Math.max(1, Math.ceil(canvas.height * 0.25));
+        if (bloom.width !== bw || bloom.height !== bh) { bloom.width = bw; bloom.height = bh; }
+        bloom.getContext('2d').drawImage(canvas, 0, 0, bw, bh);
+        bloom.style.left   = canvas.offsetLeft   + 'px';
+        bloom.style.top    = canvas.offsetTop    + 'px';
+        bloom.style.width  = canvas.offsetWidth  + 'px';
+        bloom.style.height = canvas.offsetHeight + 'px';
+        const contrast = state.glowLuma ? ' contrast(3)' : '';
+        const blurPx   = Math.max(0.5, state.glowBlur * scale);
+        bloom.style.filter  = `blur(${blurPx.toFixed(2)}px) brightness(${(1 + state.glowAlpha * 2).toFixed(2)})${contrast}`;
+        bloom.style.opacity = state.glowAlpha;
+        bloom.style.display = 'block';
+    } else if (bloom) {
+        bloom.style.display = 'none';
+    }
+
+    // ── 7. Vignette ──
+    if (state.vignette) {
+        const g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height*0.3,
+                                            canvas.width/2, canvas.height/2, canvas.height*0.75);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(1, 'rgba(0,0,0,0.65)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SNAPSHOT
+// ─────────────────────────────────────────────────────────────────
+async function snapshot() {
+    const canvas = document.getElementById('asciiCanvas');
+    if (!canvas || canvas.style.display === 'none') return;
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    if (!blob) return;
+    const name = `ascii-webcam-${new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')}.png`;
+    if (window.showSaveFilePicker) {
+        try {
+            const handle   = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'PNG Image', accept: { 'image/png': ['.png'] } }] });
+            const writable = await handle.createWritable();
+            await writable.write(blob); await writable.close();
+            setStatus('Snapshot saved'); return;
+        } catch (err) { if (err.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+    setStatus('Snapshot downloaded');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('statusMsg').textContent = msg; }
+
+function bindSlider(id, key, dispId, dec, isTone) {
+    const el = document.getElementById(id), d = document.getElementById(dispId);
+    el.addEventListener('input', () => {
+        state[key] = parseFloat(el.value);
+        d.textContent = dec > 0 ? parseFloat(el.value).toFixed(dec) : Math.round(el.value);
+        if (isTone) markToneDirty();
+    });
+}
+
+function _refreshSize() {
+    _updateRows();
+    _rebuildSampleCanvas();
+    resizeCanvas();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────
+// Save all current settings to a JSON file the user can load into the Theremin
+async function saveSettings() {
+    const s = {
+        cols: state.cols, charSize: state.charSize,
+        charSpacingH: state.charSpacingH, charSpacingV: state.charSpacingV,
+        colorMode: state.colorMode, charSet: state.charSet, customChars: state.customChars,
+        mirror: state.mirror,
+        brightness: state.brightness, contrast: state.contrast, gamma: state.gamma,
+        blackPt: state.blackPt, whitePt: state.whitePt, edgeBoost: state.edgeBoost,
+        invert: state.invert, highlights: state.highlights, midtones: state.midtones, shadows: state.shadows,
+        glowOn: state.glowOn, glowLuma: state.glowLuma, glowGamma: state.glowGamma,
+        glowBlur: state.glowBlur, glowAlpha: state.glowAlpha,
+        caOn: state.caOn, caSpread: state.caSpread, caAnimated: state.caAnimated,
+        scanlines: state.scanlines, vignette: state.vignette,
+    };
+    const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' });
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: 'ascii-settings.json',
+                types: [{ description: 'ASCII Settings', accept: { 'application/json': ['.json'] } }],
+            });
+            const w = await handle.createWritable();
+            await w.write(blob); await w.close();
+            setStatus('Settings saved');
+            return;
+        } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    // Fallback — triggers browser download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'ascii-settings.json'; a.click();
+    URL.revokeObjectURL(url);
+    setStatus('Settings downloaded as ascii-settings.json');
+}
+
+function init() {
+    // Camera toggle
+    document.getElementById('btnCamera').addEventListener('click', () => {
+        if (running) stopCamera(); else startCamera();
+    });
+
+    // Camera source switch
+    document.getElementById('cameraSource').addEventListener('change', e => {
+        if (running) startCamera(e.target.value);
+    });
+
+    // Snapshot
+    document.getElementById('btnSnapshot').addEventListener('click', snapshot);
+
+    // Fullscreen
+    document.getElementById('btnFullscreen').addEventListener('click', () => {
+        if (!document.fullscreenElement) document.getElementById('previewWrap').requestFullscreen();
+        else document.exitFullscreen();
+    });
+    document.addEventListener('fullscreenchange', () => setTimeout(resizeCanvas, 80));
+
+    // Mirror
+    document.getElementById('mirror').addEventListener('change', e => { state.mirror = e.target.checked; });
+
+    // Cols
+    document.getElementById('cols').addEventListener('input', e => {
+        state.cols = +e.target.value;
+        document.getElementById('colsVal').textContent = e.target.value;
+        _refreshSize();
+    });
+
+    // Char size — changes cell dimensions so rows + canvas must update
+    document.getElementById('charSize').addEventListener('input', e => {
+        state.charSize = +e.target.value;
+        document.getElementById('charSizeVal').textContent = e.target.value;
+        _refreshSize();
+    });
+    document.getElementById('charSpacingH').addEventListener('input', e => {
+        state.charSpacingH = -(+e.target.value);
+        document.getElementById('charSpacingHVal').textContent = state.charSpacingH + 'px';
+        _refreshSize();
+    });
+    document.getElementById('charSpacingV').addEventListener('input', e => {
+        state.charSpacingV = 1 - (+e.target.value);
+        document.getElementById('charSpacingVVal').textContent = Math.round(state.charSpacingV) + 'px';
+        _refreshSize();
+    });
+
+    // Tone sliders
+    bindSlider('brightness', 'brightness', 'brightnessVal', 2, true);
+    bindSlider('contrast',   'contrast',   'contrastVal',   2, true);
+    bindSlider('gamma',      'gamma',      'gammaVal',      2, true);
+    bindSlider('blackPt',    'blackPt',    'blackPtVal',    0, true);
+    bindSlider('whitePt',    'whitePt',    'whitePtVal',    0, true);
+    bindSlider('edgeBoost',  'edgeBoost',  'edgeBoostVal',  0, false);
+    ['highlights','midtones','shadows'].forEach(id => {
+        const el = document.getElementById(id), d = document.getElementById(id + 'Val');
+        el.addEventListener('input', () => {
+            state[id] = +el.value;
+            d.textContent = (el.value > 0 ? '+' : '') + el.value;
+            markToneDirty();
+        });
+    });
+    document.getElementById('invert').addEventListener('change', e => { state.invert = e.target.checked; markToneDirty(); });
+
+    // Colour mode
+    document.querySelectorAll('[name=colorMode]').forEach(r => r.addEventListener('change', () => {
+        state.colorMode = document.querySelector('[name=colorMode]:checked').value;
+    }));
+
+    // Character set
+    document.querySelectorAll('[name=charSet]').forEach(r => r.addEventListener('change', () => {
+        state.charSet = document.querySelector('[name=charSet]:checked').value;
+        document.getElementById('customCharsWrap').style.display = state.charSet === 'custom' ? 'block' : 'none';
+    }));
+    document.getElementById('customChars').addEventListener('input', e => { state.customChars = e.target.value; });
+
+    // Glow
+    ['glowOn','glowLuma'].forEach(id => document.getElementById(id).addEventListener('change', e => { state[id] = e.target.checked; }));
+    bindSlider('glowGamma', 'glowGamma', 'glowGammaVal', 1,  false);
+    bindSlider('glowBlur',  'glowBlur',  'glowBlurVal',  0,  false);
+    bindSlider('glowAlpha', 'glowAlpha', 'glowAlphaVal', 2,  false);
+
+    // CA
+    ['caOn','caAnimated'].forEach(id => document.getElementById(id).addEventListener('change', e => { state[id] = e.target.checked; }));
+    bindSlider('caSpread', 'caSpread', 'caSpreadVal', 0, false);
+
+    // Overlays
+    ['scanlines','vignette'].forEach(id => document.getElementById(id).addEventListener('change', e => { state[id] = e.target.checked; }));
+
+    // Collapsible sections
+    document.querySelectorAll('.section-head').forEach(h => {
+        h.addEventListener('click', () => {
+            const body = document.getElementById(h.dataset.target);
+            if (!body) return;
+            const open = body.classList.toggle('open');
+            h.classList.toggle('open', open);
+        });
+    });
+
+    // Pause render when tab is hidden — saves CPU/battery
+    document.addEventListener('visibilitychange', () => {
+        if (!running) return;
+        if (document.hidden) {
+            cancelAnimationFrame(animFrame); animFrame = null;
+        } else {
+            _fpsLast = performance.now(); _fpsFrames = 0;
+            animFrame = requestAnimationFrame(renderLoop);
+        }
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // Check for camera API availability
+    if (!navigator.mediaDevices?.getUserMedia) {
+        setStatus('Camera not supported — requires HTTPS and a modern browser');
+        document.getElementById('btnCamera').disabled = true;
+    }
+}
+
+document.fonts.ready.then(init);
+</script>
+</body>
+</html>
