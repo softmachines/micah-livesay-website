@@ -1580,11 +1580,37 @@ const FACTORY_PRESETS = [
 ];
 
 function _getSynthState() {
-    return { waveform:state.waveform, numOscs:state.numOscs, detuneSpread:state.detuneSpread, detune:state.detune,
-             filterCutoff:state.filterCutoff, filterRes:state.filterRes, filterType:state.filterType,
-             lfoOn:state.lfoOn, lfoRate:state.lfoRate, lfoDepth:state.lfoDepth, lfoWave:state.lfoWave,
-             chorusOn:state.chorusOn, chorusRate:state.chorusRate, chorusDepth:state.chorusDepth, chorusMix:state.chorusMix,
-             driveType:state.driveType, driveAmount:state.driveAmount, masterVol:state.masterVol, reverb:state.reverb };
+    return {
+        // oscillator
+        waveform:state.waveform, numOscs:state.numOscs, detuneSpread:state.detuneSpread, detune:state.detune,
+        // filter
+        filterCutoff:state.filterCutoff, filterRes:state.filterRes, filterType:state.filterType,
+        // lfo
+        lfoOn:state.lfoOn, lfoRate:state.lfoRate, lfoDepth:state.lfoDepth, lfoWave:state.lfoWave,
+        // chorus
+        chorusOn:state.chorusOn, chorusRate:state.chorusRate, chorusDepth:state.chorusDepth, chorusMix:state.chorusMix,
+        // drive
+        driveType:state.driveType, driveAmount:state.driveAmount,
+        // master
+        masterVol:state.masterVol, reverb:state.reverb,
+        // game / hand control
+        rightHandMode:state.rightHandMode, holdTime:state.holdTime, tolerance:state.tolerance,
+        // display — resolution & spacing
+        cols:state.cols, charSize:state.charSize, charSpacingH:state.charSpacingH, charSpacingV:state.charSpacingV,
+        // display — tone
+        brightness:state.brightness, contrast:state.contrast, gamma:state.gamma,
+        blackPt:state.blackPt, whitePt:state.whitePt, edgeBoost:state.edgeBoost, invert:state.invert,
+        highlights:state.highlights, midtones:state.midtones, shadows:state.shadows,
+        // display — colour & chars
+        colorMode:state.colorMode, charSet:state.charSet, customChars:state.customChars,
+        // display — glow
+        glowOn:state.glowOn, glowLuma:state.glowLuma, glowGamma:state.glowGamma, glowBlur:state.glowBlur, glowAlpha:state.glowAlpha,
+        // display — CA & overlays
+        caOn:state.caOn, caSpread:state.caSpread, caAnimated:state.caAnimated,
+        scanlines:state.scanlines, vignette:state.vignette,
+        // camera
+        mirror:state.mirror,
+    };
 }
 
 function getUserPresets() {
@@ -1617,25 +1643,74 @@ function applySynthPreset(s) {
     const setRadio = (name, val) => { const r = document.querySelector(`[name=${name}][value="${val}"]`); if (r) r.checked = true; };
     const setCb = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
 
+    // ── Oscillator ──
     setRadio('waveform', s.waveform);
     set('numOscs', s.numOscs);           setDisp('numOscsVal', s.numOscs);
     set('detuneSpread', s.detuneSpread); setDisp('detuneSpreadVal', s.detuneSpread);
     set('detune', s.detune);             setDisp('detuneVal', s.detune);
+    // ── Filter ──
     setRadio('filterType', s.filterType);
     set('filterCutoff', s.filterCutoff); setDisp('filterCutoffVal', s.filterCutoff);
     set('filterRes', s.filterRes);       setDisp('filterResVal', s.filterRes, 1);
+    // ── LFO ──
     setCb('lfoOn', s.lfoOn);
     setRadio('lfoWave', s.lfoWave);
     set('lfoRate', s.lfoRate);           setDisp('lfoRateVal', s.lfoRate, 2);
     set('lfoDepth', s.lfoDepth);         setDisp('lfoDepthVal', s.lfoDepth);
+    // ── Chorus ──
     setCb('chorusOn', s.chorusOn);
     set('chorusRate', s.chorusRate);     setDisp('chorusRateVal', s.chorusRate, 1);
     set('chorusDepth', s.chorusDepth);   setDisp('chorusDepthVal', s.chorusDepth, 1);
     set('chorusMix', s.chorusMix);       setDisp('chorusMixVal', s.chorusMix, 2);
+    // ── Drive ──
     setRadio('driveType', s.driveType);
     set('driveAmount', s.driveAmount);   setDisp('driveAmountVal', s.driveAmount);
+    // ── Master ──
     set('masterVol', s.masterVol);       setDisp('masterVolVal', s.masterVol, 2);
     set('reverb', s.reverb);             setDisp('reverbVal', s.reverb, 2);
+    // ── Game / hand control ──
+    if (s.rightHandMode != null) {
+        state.rightHandMode = s.rightHandMode;
+        const r = document.querySelector(`[name=rightHandMode][value="${s.rightHandMode}"]`);
+        if (r) r.checked = true;
+    }
+    if (s.holdTime    != null) { state.holdTime    = s.holdTime;    set('holdTime',    s.holdTime);    setDisp('holdTimeVal',    s.holdTime); }
+    if (s.tolerance   != null) { state.tolerance   = s.tolerance;   set('tolerance',   s.tolerance * 100); setDisp('toleranceVal', s.tolerance * 100); }
+    // ── Display — resolution & spacing ──
+    if (s.cols       != null) { state.cols       = s.cols;       set('cols',        s.cols);      setDisp('colsVal',        s.cols); _updateRows(); _rebuildSampleCanvas(); if (running) resizeCanvas(); }
+    if (s.charSize   != null) { state.charSize   = s.charSize;   set('charSize',    s.charSize);  setDisp('charSizeVal',    s.charSize); _updateRows(); _rebuildSampleCanvas(); if (running) resizeCanvas(); }
+    if (s.charSpacingH != null) { state.charSpacingH = s.charSpacingH; set('charSpacingH', -s.charSpacingH); setDisp('charSpacingHVal', s.charSpacingH + 'px'); }
+    if (s.charSpacingV != null) { state.charSpacingV = s.charSpacingV; set('charSpacingV', 1 - s.charSpacingV); setDisp('charSpacingVVal', Math.round(s.charSpacingV) + 'px'); }
+    // ── Display — tone ──
+    const tone = (k, id, d, dec) => { if (s[k] != null) { state[k] = s[k]; set(id, s[k]); setDisp(d, s[k], dec ?? 0); markToneDirty(); } };
+    tone('brightness','brightness','brightnessVal',2); tone('contrast','contrast','contrastVal',2);
+    tone('gamma','gamma','gammaVal',2);                tone('blackPt','blackPt','blackPtVal');
+    tone('whitePt','whitePt','whitePtVal');             tone('edgeBoost','edgeBoost','edgeBoostVal');
+    ['highlights','midtones','shadows'].forEach(k => {
+        if (s[k] == null) return;
+        state[k] = s[k]; set(k, s[k]);
+        const d = document.getElementById(k + 'Val'); if (d) d.textContent = (s[k] > 0 ? '+' : '') + s[k];
+        markToneDirty();
+    });
+    if (s.invert != null) { state.invert = s.invert; setCb('invert', s.invert); markToneDirty(); }
+    // ── Display — colour & chars ──
+    if (s.colorMode) { state.colorMode = s.colorMode; setRadio('colorMode', s.colorMode); }
+    if (s.charSet)   { state.charSet   = s.charSet;   setRadio('charSet', s.charSet); const cw = document.getElementById('customCharsWrap'); if (cw) cw.style.display = s.charSet === 'custom' ? 'block' : 'none'; }
+    if (s.customChars != null) { state.customChars = s.customChars; set('customChars', s.customChars); }
+    // ── Display — glow ──
+    if (s.glowOn   != null) { state.glowOn   = s.glowOn;   setCb('glowOn',   s.glowOn); }
+    if (s.glowLuma != null) { state.glowLuma = s.glowLuma; setCb('glowLuma', s.glowLuma); }
+    if (s.glowGamma != null) { state.glowGamma = s.glowGamma; set('glowGamma', s.glowGamma); setDisp('glowGammaVal', s.glowGamma, 1); }
+    if (s.glowBlur  != null) { state.glowBlur  = s.glowBlur;  set('glowBlur',  s.glowBlur);  setDisp('glowBlurVal',  s.glowBlur); }
+    if (s.glowAlpha != null) { state.glowAlpha = s.glowAlpha; set('glowAlpha', s.glowAlpha); setDisp('glowAlphaVal', s.glowAlpha, 2); }
+    // ── Display — CA & overlays ──
+    if (s.caOn       != null) { state.caOn       = s.caOn;       setCb('caOn',       s.caOn); }
+    if (s.caAnimated != null) { state.caAnimated = s.caAnimated; setCb('caAnimated', s.caAnimated); }
+    if (s.caSpread   != null) { state.caSpread   = s.caSpread;   set('caSpread', s.caSpread); setDisp('caSpreadVal', s.caSpread); }
+    if (s.scanlines  != null) { state.scanlines  = s.scanlines;  setCb('scanlines', s.scanlines); }
+    if (s.vignette   != null) { state.vignette   = s.vignette;   setCb('vignette',  s.vignette); }
+    // ── Camera ──
+    if (s.mirror != null) { state.mirror = s.mirror; setCb('mirror', s.mirror); }
 
     // Apply to live audio if running
     if (!audioCtx) return;
