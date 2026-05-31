@@ -967,7 +967,10 @@ function renderFrame(idx) {
         bloom.style.height = canvas.offsetHeight + 'px';
 
         const contrast = state.glowLuma ? ' contrast(3)' : '';
-        bloom.style.filter  = `blur(${Math.max(1, state.glowBlur)}px) brightness(${(1 + state.glowAlpha * 2).toFixed(2)})${contrast}`;
+        // Scale blur by preview scale so glow stays proportional to character size
+        const scale   = canvas._previewScale || 1;
+        const blurPx  = Math.max(0.5, state.glowBlur * scale);
+        bloom.style.filter  = `blur(${blurPx.toFixed(2)}px) brightness(${(1 + state.glowAlpha * 2).toFixed(2)})${contrast}`;
         bloom.style.opacity = state.glowAlpha;
         bloom.style.display = 'block';
     } else if (bloom) {
