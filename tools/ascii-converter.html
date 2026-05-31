@@ -453,6 +453,10 @@ textarea.custom-chars:focus{border-color:var(--green);}
                 <label for="glowLuma">Luma-driven intensity</label>
             </div>
             <div class="ctrl">
+                <label>Response curve γ <span id="glowGammaVal">1.0</span> &nbsp;<span style="font-size:9px;color:var(--gdark);">shadows ← | → highlights</span></label>
+                <input type="range" id="glowGamma" min="0.1" max="4" step="0.1" value="1">
+            </div>
+            <div class="ctrl">
                 <label>Blur radius <span id="glowBlurVal">6</span>px</label>
                 <input type="range" id="glowBlur" min="1" max="30" value="6">
             </div>
@@ -578,6 +582,7 @@ const state = {
     invert:        false,
     glowOn:        true,
     glowLuma:      false,  // scale glow by character brightness
+    glowGamma:     1.0,    // power curve on luma→glow response (1=linear, <1=mids/shadows, >1=highlights only)
     glowBlur:      6,
     glowAlpha:     0.7,
     caOn:          false,
@@ -1081,7 +1086,7 @@ function renderFrame(idx) {
                 ctx.restore();
             } else {
                 ctx.fillStyle   = color;
-                ctx.globalAlpha = 0.3 + luma * 0.7;
+                ctx.globalAlpha = 0.3 + Math.pow(luma, state.glowGamma) * 0.7;
                 ctx.fillText(char, x, y);
                 ctx.globalAlpha = 1;
             }
@@ -1196,8 +1201,22 @@ function stopPlay() {
 // SESSION SAVE / LOAD  (raw frame data — skip reprocessing)
 // ─────────────────────────────────────────────────────────────────
 
-function saveSession() {
+async function saveSession() {
     if (!state.frames.length) return;
+
+    // Open Save dialog immediately while the user gesture is still active
+    let fileHandle = null;
+    if (window.showSaveFilePicker) {
+        try {
+            fileHandle = await window.showSaveFilePicker({
+                suggestedName: 'ascii-session.json',
+                types: [{ description: 'ASCII Session JSON', accept: { 'application/json': ['.json'] } }],
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+        }
+    }
+
     const cells = state.cols * state.rows;
     // Always pack as RGBA so every editing mode stays available on reload
     const buf = new Uint8Array(state.frameCount * cells * 4);
@@ -1218,10 +1237,22 @@ function saveSession() {
         frameCount: state.frameCount, data: btoa(binary),
     };
     const blob = new Blob([JSON.stringify(session)], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'ascii-session.json'; a.click();
-    URL.revokeObjectURL(url);
+
+    if (fileHandle) {
+        try {
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        } catch (err) {
+            setStatus(`Save failed: ${err.message}`);
+            return;
+        }
+    } else {
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        a.href = url; a.download = 'ascii-session.json'; a.click();
+        URL.revokeObjectURL(url);
+    }
     setExport(`Session saved — ${Math.round(JSON.stringify(session).length / 1024)} KB`);
 }
 
@@ -1289,8 +1320,23 @@ function loadSession(file) {
 // ─────────────────────────────────────────────────────────────────
 // EXPORT
 // ─────────────────────────────────────────────────────────────────
-function exportJSON() {
+async function exportJSON() {
     if (!state.frames.length) return;
+
+    // Open the native Save dialog immediately while we still have the user gesture.
+    // Data is built afterwards so the dialog appears without any delay.
+    let fileHandle = null;
+    if (window.showSaveFilePicker) {
+        try {
+            fileHandle = await window.showSaveFilePicker({
+                suggestedName: 'ascii-video.json',
+                types: [{ description: 'ASCII Video JSON', accept: { 'application/json': ['.json'] } }],
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') return; // user cancelled
+            // Any other error (e.g. API blocked): fall through to download fallback
+        }
+    }
 
     const outputAR = (state.cropEnabled && state.cropAR)
         ? state.cropAR
@@ -1338,12 +1384,25 @@ function exportJSON() {
 
     const json = JSON.stringify(meta);
     const blob = new Blob([json], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'ascii-video.json'; a.click();
-    URL.revokeObjectURL(url);
+    const kb   = Math.round(json.length / 1024);
 
-    const kb = Math.round(json.length / 1024);
+    if (fileHandle) {
+        try {
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        } catch (err) {
+            setExport(`Export failed: ${err.message}`);
+            return;
+        }
+    } else {
+        // Fallback for Firefox / Safari — browser's own download manager
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        a.href = url; a.download = 'ascii-video.json'; a.click();
+        URL.revokeObjectURL(url);
+    }
+
     setExport(`Exported — ${kb} KB`);
 }
 
@@ -1474,7 +1533,7 @@ function getCurrentSettings() {
         colorMode: state.colorMode,
         charSet:     document.querySelector('[name=charSet]:checked')?.value    || 'standard',
         customChars: document.getElementById('customChars').value,
-        glowOn: state.glowOn, glowLuma: state.glowLuma, glowBlur: state.glowBlur, glowAlpha: state.glowAlpha,
+        glowOn: state.glowOn, glowLuma: state.glowLuma, glowGamma: state.glowGamma, glowBlur: state.glowBlur, glowAlpha: state.glowAlpha,
         caOn: state.caOn, caSpread: state.caSpread, caAnimated: state.caAnimated,
         scanlines: state.scanlines, vignette: state.vignette, invert: state.invert,
         brightness: state.brightness, contrast: state.contrast, gamma: state.gamma,
@@ -1558,6 +1617,7 @@ function applySettings(s) {
     // Glow + CA
     setSlider('glowBlur',  'glowBlur',  'glowBlurVal',  s.glowBlur);
     setSlider('glowAlpha', 'glowAlpha', 'glowAlphaVal', s.glowAlpha, 2);
+    setSlider('glowGamma', 'glowGamma', 'glowGammaVal', s.glowGamma ?? 1.0, 1);
     setSlider('caSpread',  'caSpread',  'caSpreadVal',  s.caSpread);
 
     updateRows(); resizeCanvas();
@@ -1684,6 +1744,7 @@ function init() {
     });
     bindSlider('glowBlur',  'glowBlur',   'glowBlurVal');
     bindSlider('glowAlpha', 'glowAlpha',  'glowAlphaVal',  1, 2);
+    bindSlider('glowGamma', 'glowGamma',  'glowGammaVal',  1, 1);
     bindSlider('caSpread',  'caSpread',   'caSpreadVal');
     document.getElementById('charSize').addEventListener('input', e => {
         state.charSize = +e.target.value;
