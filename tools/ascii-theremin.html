@@ -69,6 +69,19 @@ select.ctrl-select{width:100%;background:var(--bg);border:1px solid var(--gdark)
 .preview-wrap::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 42%,rgba(0,255,65,.008) 46%,rgba(0,255,65,.018) 50%,rgba(0,255,65,.008) 54%,transparent 58%);pointer-events:none;z-index:6;animation:scanBand 14s linear infinite;}
 .preview-wrap::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.03);pointer-events:none;z-index:7;}
 textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--gdark);color:var(--green);font-family:inherit;font-size:11px;padding:4px;resize:none;height:40px;outline:none;}
+.preset-list{display:flex;flex-direction:column;gap:3px;max-height:180px;overflow-y:auto;margin-bottom:8px;}
+.preset-list::-webkit-scrollbar{width:2px;}
+.preset-list::-webkit-scrollbar-thumb{background:var(--gdark);}
+.preset-item{display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid #020e03;}
+.preset-name{flex:1;font-size:11px;color:var(--gdim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;}
+.preset-name.factory{color:var(--gdark);font-style:italic;}
+.preset-load{background:transparent;border:1px solid var(--gdark);color:var(--gdim);font-family:inherit;font-size:10px;padding:1px 7px;cursor:pointer;transition:all .1s;}
+.preset-load:hover{border-color:var(--green);color:var(--green);}
+.preset-del{background:transparent;border:none;color:var(--gdark);font-family:inherit;font-size:12px;cursor:pointer;padding:0 3px;line-height:1;}
+.preset-del:hover{color:var(--pink);}
+.preset-input{background:transparent;border:1px solid var(--gdark);color:var(--green);font-family:inherit;font-size:11px;padding:3px 6px;outline:none;flex:1;min-width:0;}
+.preset-input:focus{border-color:var(--green);}
+.preset-input::placeholder{color:var(--gdark);}
 </style>
 </head>
 <body>
@@ -92,13 +105,25 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 
 <div class="sidebar">
 
+    <!-- SYNTH PRESETS -->
+    <div class="section">
+        <div class="section-head open" data-target="s-presets"><span>SYNTH PRESETS</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-presets">
+            <div class="preset-list" id="presetList"></div>
+            <div style="display:flex;gap:5px;">
+                <input type="text" id="presetName" class="preset-input" placeholder="name your preset…">
+                <button class="btn green" id="btnSavePreset">[ SAVE ]</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME -->
     <div class="section">
         <div class="section-head open" data-target="s-game"><span>GAME</span><span class="arrow">▶</span></div>
         <div class="section-body open" id="s-game">
             <div style="font-size:10px;color:var(--gdim);margin-bottom:8px;line-height:1.5;">
-                Move your <span style="color:var(--cyan);">LEFT hand</span> up/down to control pitch.<br>
-                Move your <span style="color:var(--pink);">RIGHT hand</span> up/down to control volume.<br>
-                Hold the target note to score.
+                <span style="color:var(--pink);">LEFT hand</span> up/down = pitch &nbsp;·&nbsp;
+                <span style="color:var(--pink);">RIGHT hand</span> up/down = volume
             </div>
             <div class="ctrl">
                 <label>Hold time <span id="holdTimeVal">1.5</span>s</label>
@@ -111,22 +136,129 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
         </div>
     </div>
 
+    <!-- OSCILLATOR -->
     <div class="section">
-        <div class="section-head open" data-target="s-audio"><span>AUDIO</span><span class="arrow">▶</span></div>
-        <div class="section-body open" id="s-audio">
-            <div style="font-size:10px;color:var(--gdim);margin-bottom:6px;">Waveform</div>
+        <div class="section-head open" data-target="s-osc"><span>OSCILLATOR</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-osc">
+            <div style="font-size:10px;color:var(--gdim);margin-bottom:5px;">Waveform</div>
             <div class="radio-group" style="margin-bottom:8px;">
-                <label><input type="radio" name="waveform" value="sine" checked> Sine &nbsp;<span style="color:var(--gdark);">smooth</span></label>
-                <label><input type="radio" name="waveform" value="triangle"> Triangle &nbsp;<span style="color:var(--gdark);">soft edge</span></label>
-                <label><input type="radio" name="waveform" value="sawtooth"> Sawtooth &nbsp;<span style="color:var(--gdark);">bright</span></label>
-                <label><input type="radio" name="waveform" value="square"> Square &nbsp;<span style="color:var(--gdark);">harsh</span></label>
+                <label><input type="radio" name="waveform" value="sine" checked> Sine</label>
+                <label><input type="radio" name="waveform" value="triangle"> Triangle</label>
+                <label><input type="radio" name="waveform" value="sawtooth"> Sawtooth</label>
+                <label><input type="radio" name="waveform" value="square"> Square</label>
             </div>
             <div class="ctrl">
-                <label>Detune <span id="detuneVal">0</span>¢</label>
-                <input type="range" id="detune" min="-50" max="50" value="0">
+                <label>Voices <span id="numOscsVal">5</span></label>
+                <input type="range" id="numOscs" min="1" max="7" step="2" value="5">
             </div>
             <div class="ctrl">
-                <label>Reverb <span id="reverbVal">0.3</span></label>
+                <label>Detune spread <span id="detuneSpreadVal">20</span>¢</label>
+                <input type="range" id="detuneSpread" min="0" max="100" value="20">
+            </div>
+            <div class="ctrl">
+                <label>Coarse detune <span id="detuneVal">0</span>¢</label>
+                <input type="range" id="detune" min="-100" max="100" value="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER -->
+    <div class="section">
+        <div class="section-head open" data-target="s-filter"><span>FILTER</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-filter">
+            <div style="font-size:10px;color:var(--gdim);margin-bottom:5px;">Type</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="filterType" value="lowpass" checked> Lowpass</label>
+                <label><input type="radio" name="filterType" value="highpass"> Highpass</label>
+                <label><input type="radio" name="filterType" value="bandpass"> Bandpass</label>
+            </div>
+            <div class="ctrl">
+                <label>Cutoff <span id="filterCutoffVal">1800</span>Hz</label>
+                <input type="range" id="filterCutoff" min="40" max="18000" value="1800">
+            </div>
+            <div class="ctrl">
+                <label>Resonance <span id="filterResVal">2.0</span></label>
+                <input type="range" id="filterRes" min="0.5" max="20" step="0.5" value="2">
+            </div>
+        </div>
+    </div>
+
+    <!-- LFO -->
+    <div class="section">
+        <div class="section-head" data-target="s-lfo"><span>LFO → FILTER CUTOFF</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-lfo">
+            <div class="check-row" style="margin-bottom:6px;">
+                <input type="checkbox" id="lfoOn" checked>
+                <label for="lfoOn">Enable LFO</label>
+            </div>
+            <div style="font-size:10px;color:var(--gdim);margin-bottom:5px;">Waveform</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="lfoWave" value="sine" checked> Sine</label>
+                <label><input type="radio" name="lfoWave" value="triangle"> Triangle</label>
+                <label><input type="radio" name="lfoWave" value="sawtooth"> Sawtooth</label>
+                <label><input type="radio" name="lfoWave" value="square"> Square</label>
+            </div>
+            <div class="ctrl">
+                <label>Rate <span id="lfoRateVal">0.40</span>Hz</label>
+                <input type="range" id="lfoRate" min="0.01" max="20" step="0.01" value="0.4">
+            </div>
+            <div class="ctrl">
+                <label>Depth <span id="lfoDepthVal">600</span>Hz</label>
+                <input type="range" id="lfoDepth" min="0" max="8000" value="600">
+            </div>
+        </div>
+    </div>
+
+    <!-- CHORUS -->
+    <div class="section">
+        <div class="section-head" data-target="s-chorus"><span>CHORUS</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-chorus">
+            <div class="check-row" style="margin-bottom:6px;">
+                <input type="checkbox" id="chorusOn">
+                <label for="chorusOn">Enable chorus</label>
+            </div>
+            <div class="ctrl">
+                <label>Rate <span id="chorusRateVal">0.8</span>Hz</label>
+                <input type="range" id="chorusRate" min="0.05" max="5" step="0.05" value="0.8">
+            </div>
+            <div class="ctrl">
+                <label>Depth <span id="chorusDepthVal">3.0</span>ms</label>
+                <input type="range" id="chorusDepth" min="0.5" max="10" step="0.5" value="3">
+            </div>
+            <div class="ctrl">
+                <label>Mix <span id="chorusMixVal">0.50</span></label>
+                <input type="range" id="chorusMix" min="0" max="1" step="0.05" value="0.5">
+            </div>
+        </div>
+    </div>
+
+    <!-- DRIVE -->
+    <div class="section">
+        <div class="section-head" data-target="s-drive"><span>DRIVE</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-drive">
+            <div style="font-size:10px;color:var(--gdim);margin-bottom:5px;">Curve type</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="driveType" value="soft" checked> Soft &nbsp;<span style="color:var(--gdark);">warm saturation</span></label>
+                <label><input type="radio" name="driveType" value="hard"> Hard &nbsp;<span style="color:var(--gdark);">digital clip</span></label>
+                <label><input type="radio" name="driveType" value="fold"> Fold &nbsp;<span style="color:var(--gdark);">wavefold</span></label>
+            </div>
+            <div class="ctrl">
+                <label>Amount <span id="driveAmountVal">15</span></label>
+                <input type="range" id="driveAmount" min="0" max="100" value="15">
+            </div>
+        </div>
+    </div>
+
+    <!-- MASTER -->
+    <div class="section">
+        <div class="section-head open" data-target="s-master"><span>MASTER</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-master">
+            <div class="ctrl">
+                <label>Volume <span id="masterVolVal">0.70</span></label>
+                <input type="range" id="masterVol" min="0" max="1" step="0.05" value="0.7">
+            </div>
+            <div class="ctrl">
+                <label>Reverb <span id="reverbVal">0.30</span></label>
                 <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.3">
             </div>
         </div>
@@ -397,8 +529,18 @@ const state = {
     scanlines: false, vignette: false,
     // camera
     mirror: true,
-    // audio (theremin-specific)
-    waveform: 'sine', detune: 0, reverb: 0.3,
+    // oscillator
+    waveform: 'sine', numOscs: 5, detuneSpread: 20, detune: 0,
+    // filter
+    filterCutoff: 1800, filterRes: 2.0, filterType: 'lowpass',
+    // lfo
+    lfoOn: true, lfoRate: 0.4, lfoDepth: 600, lfoWave: 'sine',
+    // chorus
+    chorusOn: false, chorusRate: 0.8, chorusDepth: 3.0, chorusMix: 0.5,
+    // drive
+    driveType: 'soft', driveAmount: 15,
+    // master
+    masterVol: 0.7, reverb: 0.3,
     // game (theremin-specific)
     holdTime: 1.5, tolerance: 0.12,
 };
@@ -409,9 +551,10 @@ const game = {
     targetNote: null,
     holdMs: 0,
     lastTs: 0,
-    flashMs: 0,   // ms remaining for score-flash effect
-    streakMs: 0,  // time currently in-range
+    flashMs: 0,
+    streakMs: 0,
 };
+
 
 // Hand results from MediaPipe (updated each frame)
 let handResults = null;
@@ -488,9 +631,10 @@ function yToFreq(y) {
     return Math.exp(lo + (1 - y) * (hi - lo));
 }
 function wristYToFreq(wy) {
-    // Active zone: 10%–90% of frame height
-    const n = Math.max(0, Math.min(1, (wy - 0.1) / 0.8));
-    return yToFreq(1 - n);
+    // Hand UP (small wy) = HIGH frequency, hand DOWN (large wy) = LOW frequency.
+    // Active zone: 8%–88% of frame height so low notes are reachable with arm lowered.
+    const n = Math.max(0, Math.min(1, (wy - 0.08) / 0.80));
+    return yToFreq(n);
 }
 function freqToNoteName(freq) {
     if (!freq) return '—';
@@ -504,74 +648,205 @@ function freqToNoteName(freq) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// WEB AUDIO
 // ─────────────────────────────────────────────────────────────────
-let audioCtx = null, osc = null, oscGain = null, masterGain = null;
-let reverbGain = null, reverbNode = null;
+// WEB AUDIO  — full synthesis chain
+// oscs[7] → oscMixGain → filter ← LFO
+//          → chorusInput → waveshaper → envelopeGain
+//          → dry/reverb split → masterGain → output
+// ─────────────────────────────────────────────────────────────────
+const MAX_OSCS = 7;
+let audioCtx = null;
+let oscs = [], oscGains = [], oscMixGain = null;
+let filter = null;
+let lfoOsc = null, lfoGainNode = null;
+let chorusInput = null, chorusDryGain = null, chorusWetGain = null, chorusVoices = [];
+let waveshaper = null, postDriveGain = null;
+let envelopeGain = null;
+let dryGain = null, reverbNode = null, reverbGain = null, masterGain = null;
+let _currentFreq = 261.63;
 
 function initAudio() {
     if (audioCtx) return;
     audioCtx = new AudioContext();
 
-    osc = audioCtx.createOscillator();
-    osc.type = state.waveform;
-    osc.frequency.value = 261.63;
-    osc.detune.value    = state.detune;
+    // ── 7 always-running oscillators, individual gain gates ──
+    oscMixGain = audioCtx.createGain();
+    for (let i = 0; i < MAX_OSCS; i++) {
+        const osc = audioCtx.createOscillator();
+        osc.type = state.waveform;
+        osc.frequency.value = _currentFreq;
+        const g = audioCtx.createGain();
+        g.gain.value = 0;
+        osc.connect(g); g.connect(oscMixGain);
+        osc.start();
+        oscs.push(osc); oscGains.push(g);
+    }
+    _applyOscSettings();
 
-    oscGain = audioCtx.createGain();
-    oscGain.gain.value = 0;
+    // ── Resonant filter ──
+    filter = audioCtx.createBiquadFilter();
+    filter.type = state.filterType;
+    filter.frequency.value = state.filterCutoff;
+    filter.Q.value = state.filterRes;
+    oscMixGain.connect(filter);
 
-    masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.6;
+    // ── LFO → filter frequency ──
+    lfoOsc = audioCtx.createOscillator();
+    lfoGainNode = audioCtx.createGain();
+    lfoOsc.type = state.lfoWave;
+    lfoOsc.frequency.value = state.lfoRate;
+    lfoGainNode.gain.value = state.lfoOn ? state.lfoDepth : 0;
+    lfoOsc.connect(lfoGainNode);
+    lfoGainNode.connect(filter.frequency);
+    lfoOsc.start();
 
-    // Simple reverb via convolver with synthetic IR
-    reverbGain = audioCtx.createGain();
-    reverbGain.gain.value = state.reverb;
+    // ── Chorus (3 BBD voices, stereo spread) ──
+    chorusInput   = audioCtx.createGain();
+    chorusDryGain = audioCtx.createGain();
+    chorusWetGain = audioCtx.createGain();
+    const chorusOut = audioCtx.createGain();
+    const BASE_DELAYS = [0.018, 0.026, 0.033];
+    const LFO_RATES   = [0.65, 1.05, 1.5];
+    const PANS        = [-0.8, 0.0, 0.8];
+    chorusVoices = [];
+    for (let i = 0; i < 3; i++) {
+        const delay = audioCtx.createDelay(0.1);
+        delay.delayTime.value = BASE_DELAYS[i];
+        const cLFO  = audioCtx.createOscillator();
+        const cLFOG = audioCtx.createGain();
+        cLFO.type = 'sine';
+        cLFO.frequency.value = LFO_RATES[i] * state.chorusRate;
+        cLFOG.gain.value = state.chorusDepth / 1000;
+        cLFO.connect(cLFOG); cLFOG.connect(delay.delayTime);
+        cLFO.start();
+        const pan = audioCtx.createStereoPanner();
+        pan.pan.value = PANS[i];
+        chorusInput.connect(delay); delay.connect(pan); pan.connect(chorusWetGain);
+        chorusVoices.push({ delay, lfo: cLFO, lfoG: cLFOG, pan });
+    }
+    _applyChorusMix();
+    chorusInput.connect(chorusDryGain);
+    chorusDryGain.connect(chorusOut);
+    chorusWetGain.connect(chorusOut);
+    filter.connect(chorusInput);
+
+    // ── WaveShaper (saturation / drive) ──
+    waveshaper    = audioCtx.createWaveShaper();
+    postDriveGain = audioCtx.createGain();
+    waveshaper.oversample = '4x';
+    _applyDrive();
+    chorusOut.connect(waveshaper);
+    waveshaper.connect(postDriveGain);
+
+    // ── Envelope gain — hand volume control ──
+    envelopeGain = audioCtx.createGain();
+    envelopeGain.gain.value = 0;
+    postDriveGain.connect(envelopeGain);
+
+    // ── Dry / reverb split → master ──
+    dryGain    = audioCtx.createGain();
     reverbNode = audioCtx.createConvolver();
-    reverbNode.buffer = _makeReverbIR(audioCtx, 2.0);
-
-    const dryGain = audioCtx.createGain();
-    dryGain.gain.value = 1 - state.reverb;
-
-    osc.connect(oscGain);
-    oscGain.connect(dryGain);
-    oscGain.connect(reverbNode);
+    reverbNode.buffer = _makeReverbIR(audioCtx, 2.5);
+    reverbGain = audioCtx.createGain();
+    masterGain = audioCtx.createGain();
+    const compressor = audioCtx.createDynamicsCompressor();
+    _applyReverbMix();
+    masterGain.gain.value = state.masterVol;
+    envelopeGain.connect(dryGain);
+    envelopeGain.connect(reverbNode);
     reverbNode.connect(reverbGain);
     dryGain.connect(masterGain);
     reverbGain.connect(masterGain);
-    masterGain.connect(audioCtx.destination);
-    osc.start();
+    masterGain.connect(compressor);
+    compressor.connect(audioCtx.destination);
+}
+
+// ── Apply helpers ─────────────────────────────────────────────────
+function _applyOscSettings() {
+    if (!oscs.length) return;
+    const n    = state.numOscs;
+    const norm = 1 / Math.sqrt(n);
+    for (let i = 0; i < MAX_OSCS; i++) {
+        const active = i < n;
+        oscGains[i].gain.setTargetAtTime(active ? norm : 0, audioCtx.currentTime, 0.02);
+        if (active) {
+            const detuneCents = (n === 1 ? 0 : (i / (n - 1) - 0.5) * 2 * state.detuneSpread) + state.detune;
+            oscs[i].detune.setTargetAtTime(detuneCents, audioCtx.currentTime, 0.02);
+        }
+    }
+}
+
+function _applyDrive() {
+    if (!waveshaper) return;
+    const a = state.driveAmount / 100;
+    waveshaper.curve = _makeDriveCurve(a, state.driveType);
+    // Compensate gain: more drive = louder output
+    if (postDriveGain) postDriveGain.gain.value = a < 0.01 ? 1 : 1 / (1 + a * 3);
+}
+
+function _makeDriveCurve(a, type) {
+    const n = 512; const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+        const x = (i * 2) / n - 1;
+        if (a < 0.01) { curve[i] = x; continue; }
+        if (type === 'soft') {
+            const k = a * 200;
+            curve[i] = (Math.PI + k) * x / (Math.PI + k * Math.abs(x));
+        } else if (type === 'hard') {
+            curve[i] = Math.max(-1, Math.min(1, x * (1 + a * 15)));
+        } else { // fold
+            curve[i] = Math.sin(x * Math.PI * (0.5 + a * 2));
+        }
+    }
+    return curve;
+}
+
+function _applyChorusMix() {
+    if (!chorusDryGain) return;
+    const wet = state.chorusOn ? state.chorusMix : 0;
+    chorusDryGain.gain.setTargetAtTime(1 - wet, audioCtx.currentTime, 0.05);
+    chorusWetGain.gain.setTargetAtTime(wet,     audioCtx.currentTime, 0.05);
+    chorusVoices.forEach((v, i) => {
+        const rates = [0.65, 1.05, 1.5];
+        v.lfo.frequency.setTargetAtTime(rates[i] * state.chorusRate, audioCtx.currentTime, 0.05);
+        v.lfoG.gain.setTargetAtTime(state.chorusDepth / 1000, audioCtx.currentTime, 0.05);
+    });
+}
+
+function _applyReverbMix() {
+    if (!dryGain) return;
+    dryGain.gain.setTargetAtTime(1 - state.reverb * 0.8, audioCtx.currentTime, 0.05);
+    reverbGain.gain.setTargetAtTime(state.reverb * 0.6,  audioCtx.currentTime, 0.05);
 }
 
 function _makeReverbIR(ctx, duration) {
-    const rate    = ctx.sampleRate;
-    const length  = rate * duration;
-    const buf     = ctx.createBuffer(2, length, rate);
+    const rate = ctx.sampleRate, length = rate * duration;
+    const buf  = ctx.createBuffer(2, length, rate);
     for (let c = 0; c < 2; c++) {
         const ch = buf.getChannelData(c);
         for (let i = 0; i < length; i++) {
-            ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+            ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
         }
     }
     return buf;
 }
 
+// ── Public control API ────────────────────────────────────────────
 function setOscFreq(freq) {
-    if (!osc) return;
-    osc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.03);
+    if (!oscs.length) return;
+    _currentFreq = freq;
+    oscs.forEach(osc => osc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.03));
 }
 
 function setOscGain(gain) {
-    if (!oscGain) return;
-    oscGain.gain.setTargetAtTime(Math.max(0, Math.min(1, gain)), audioCtx.currentTime, 0.04);
+    if (!envelopeGain) return;
+    envelopeGain.gain.setTargetAtTime(Math.max(0, Math.min(1, gain)), audioCtx.currentTime, 0.04);
 }
 
 function playScoreSfx() {
     if (!audioCtx) return;
-    const s = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
+    const s = audioCtx.createOscillator(), g = audioCtx.createGain();
     s.connect(g); g.connect(audioCtx.destination);
-    s.type = 'sine';
     s.frequency.setValueAtTime(880, audioCtx.currentTime);
     s.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.08);
     g.gain.setValueAtTime(0.25, audioCtx.currentTime);
@@ -1028,46 +1303,40 @@ function renderOverlay(leftHand, rightHand, ts) {
         }
     }
 
-    // ── Left-hand skeleton (cyan — frequency control) ──
+    // ── Left hand — pink, pitch ──
     if (leftHand) {
-        const col   = '#00ffcc';
-        const alpha = leftFreq ? 0.85 : 0.5;
-        drawHandSkeleton(ctx, leftHand, W, H, RULER_W, col, alpha);
+        drawHandSkeleton(ctx, leftHand, W, H, '#ff2d78', 0.85);
 
-        // Frequency line
         if (leftFreq) {
             const ly = freqToY(leftFreq) * H;
-            ctx.strokeStyle = col;
-            ctx.globalAlpha = 0.7;
+            ctx.strokeStyle = '#ff2d78';
+            ctx.globalAlpha = 0.6;
             ctx.lineWidth   = 1.5;
             ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W - RULER_W, ly); ctx.stroke();
             ctx.globalAlpha = 1;
 
-            // Current note label near wrist
-            const wrist  = leftHand[0];
-            const wx     = (state.mirror ? 1 - wrist.x : wrist.x) * W;
-            const wy_raw = wrist.y * H;
+            const wrist = leftHand[0];
+            const wx    = (state.mirror ? 1 - wrist.x : wrist.x) * W;
+            const wy    = wrist.y * H;
             ctx.font      = `${Math.round(H * 0.038)}px 'Share Tech Mono', monospace`;
-            ctx.fillStyle = col;
+            ctx.fillStyle = '#ff2d78';
             ctx.textAlign = wx > W * 0.5 ? 'right' : 'left';
-            const label   = freqToNoteName(leftFreq);
-            ctx.fillText(label, wx > W * 0.5 ? wx - 8 : wx + 8, wy_raw - 20);
+            ctx.fillText(freqToNoteName(leftFreq), wx > W * 0.5 ? wx - 8 : wx + 8, wy - 20);
         }
     }
 
-    // ── Right-hand skeleton (pink — volume control) ──
+    // ── Right hand — pink, volume ──
     if (rightHand) {
-        drawHandSkeleton(ctx, rightHand, W, H, RULER_W, '#ff2d78', 0.75);
+        drawHandSkeleton(ctx, rightHand, W, H, '#ff2d78', 0.75);
 
-        // Volume bar near right wrist
-        const wrist = rightHand[0];
-        const rx    = (state.mirror ? 1 - wrist.x : wrist.x) * W;
-        const ry    = wrist.y * H;
-        const barH  = 50, barW = 6;
+        const wrist  = rightHand[0];
+        const rx     = (state.mirror ? 1 - wrist.x : wrist.x) * W;
+        const ry     = wrist.y * H;
+        const barH   = 50, barW = 6;
         const filled = rightGain * barH;
-        ctx.fillStyle   = 'rgba(255,45,120,.2)';
+        ctx.fillStyle = 'rgba(255,45,120,0.2)';
         ctx.fillRect(rx + 12, ry - barH/2, barW, barH);
-        ctx.fillStyle   = '#ff2d78';
+        ctx.fillStyle = '#ff2d78';
         ctx.fillRect(rx + 12, ry - barH/2 + (barH - filled), barW, filled);
     }
 
@@ -1116,27 +1385,24 @@ function drawFreqRuler(ctx, W, H, rulerW) {
     }
 }
 
-function drawHandSkeleton(ctx, hand, W, H, rulerW, color, alpha) {
+function drawHandSkeleton(ctx, hand, W, H, color, alpha) {
     ctx.globalAlpha = alpha;
-    // Connections
     ctx.strokeStyle = color;
     ctx.lineWidth   = 2;
     for (const [a, b] of HAND_CONNECTIONS) {
         const la = hand[a], lb = hand[b];
-        const ax = (state.mirror ? 1 - la.x : la.x) * W;
-        const ay = la.y * H;
-        const bx = (state.mirror ? 1 - lb.x : lb.x) * W;
-        const by = lb.y * H;
-        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo((state.mirror ? 1 - la.x : la.x) * W, la.y * H);
+        ctx.lineTo((state.mirror ? 1 - lb.x : lb.x) * W, lb.y * H);
+        ctx.stroke();
     }
-    // Landmark dots
+    ctx.fillStyle = color;
     for (let i = 0; i < hand.length; i++) {
         const lm = hand[i];
-        const px = (state.mirror ? 1 - lm.x : lm.x) * W;
-        const py = lm.y * H;
         const r  = i === 0 ? 5 : [4,8,12,16,20].includes(i) ? 4 : 2.5;
-        ctx.fillStyle = i === 0 ? '#fff' : color;
-        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc((state.mirror ? 1 - lm.x : lm.x) * W, lm.y * H, r, 0, Math.PI * 2);
+        ctx.fill();
     }
     ctx.globalAlpha = 1;
 }
@@ -1241,6 +1507,114 @@ function _applySharedSettings(s) {
     setStatus('Settings loaded from file');
 }
 
+// ─────────────────────────────────────────────────────────────────
+// SYNTH PRESETS
+// ─────────────────────────────────────────────────────────────────
+const SYNTH_PRESET_KEY = 'ascii-theremin-synth-presets';
+
+const FACTORY_PRESETS = [
+    { name:'VAPOR PAD',   s:{ waveform:'sawtooth', numOscs:5, detuneSpread:25, detune:0, filterCutoff:800,  filterRes:3,  filterType:'lowpass', lfoOn:true,  lfoRate:0.28, lfoDepth:400,  lfoWave:'sine',     chorusOn:true,  chorusRate:0.6,  chorusDepth:3.5, chorusMix:0.65, driveType:'soft', driveAmount:15, masterVol:0.7, reverb:0.45 } },
+    { name:'NEON BASS',   s:{ waveform:'square',   numOscs:3, detuneSpread:10, detune:0, filterCutoff:380,  filterRes:6,  filterType:'lowpass', lfoOn:true,  lfoRate:1.2,  lfoDepth:800,  lfoWave:'sawtooth', chorusOn:false, chorusRate:0.8,  chorusDepth:2.0, chorusMix:0.3,  driveType:'hard', driveAmount:45, masterVol:0.65,reverb:0.2  } },
+    { name:'GHOST SINE',  s:{ waveform:'sine',     numOscs:3, detuneSpread:8,  detune:0, filterCutoff:1200, filterRes:1,  filterType:'lowpass', lfoOn:true,  lfoRate:0.15, lfoDepth:200,  lfoWave:'sine',     chorusOn:true,  chorusRate:1.2,  chorusDepth:4.5, chorusMix:0.8,  driveType:'soft', driveAmount:5,  masterVol:0.7, reverb:0.75 } },
+    { name:'GLITCH BELL', s:{ waveform:'sine',     numOscs:1, detuneSpread:0,  detune:0, filterCutoff:3500, filterRes:8,  filterType:'lowpass', lfoOn:true,  lfoRate:4.0,  lfoDepth:3000, lfoWave:'triangle', chorusOn:false, chorusRate:0.8,  chorusDepth:2.0, chorusMix:0.3,  driveType:'hard', driveAmount:30, masterVol:0.6, reverb:0.6  } },
+    { name:'CYBER LEAD',  s:{ waveform:'sawtooth', numOscs:3, detuneSpread:15, detune:0, filterCutoff:2500, filterRes:4,  filterType:'lowpass', lfoOn:true,  lfoRate:0.8,  lfoDepth:1200, lfoWave:'sine',     chorusOn:true,  chorusRate:1.5,  chorusDepth:2.0, chorusMix:0.4,  driveType:'soft', driveAmount:25, masterVol:0.7, reverb:0.3  } },
+    { name:'ACID WAVE',   s:{ waveform:'sawtooth', numOscs:1, detuneSpread:0,  detune:0, filterCutoff:300,  filterRes:18, filterType:'lowpass', lfoOn:true,  lfoRate:2.5,  lfoDepth:4000, lfoWave:'sawtooth', chorusOn:false, chorusRate:0.8,  chorusDepth:2.0, chorusMix:0.2,  driveType:'soft', driveAmount:20, masterVol:0.65,reverb:0.15 } },
+    { name:'PAD WIDE',    s:{ waveform:'triangle', numOscs:7, detuneSpread:40, detune:0, filterCutoff:600,  filterRes:1,  filterType:'lowpass', lfoOn:true,  lfoRate:0.1,  lfoDepth:150,  lfoWave:'sine',     chorusOn:true,  chorusRate:0.5,  chorusDepth:5.0, chorusMix:0.7,  driveType:'soft', driveAmount:8,  masterVol:0.7, reverb:0.6  } },
+];
+
+function _getSynthState() {
+    return { waveform:state.waveform, numOscs:state.numOscs, detuneSpread:state.detuneSpread, detune:state.detune,
+             filterCutoff:state.filterCutoff, filterRes:state.filterRes, filterType:state.filterType,
+             lfoOn:state.lfoOn, lfoRate:state.lfoRate, lfoDepth:state.lfoDepth, lfoWave:state.lfoWave,
+             chorusOn:state.chorusOn, chorusRate:state.chorusRate, chorusDepth:state.chorusDepth, chorusMix:state.chorusMix,
+             driveType:state.driveType, driveAmount:state.driveAmount, masterVol:state.masterVol, reverb:state.reverb };
+}
+
+function getUserPresets() {
+    try { return JSON.parse(localStorage.getItem(SYNTH_PRESET_KEY)) || []; }
+    catch { return []; }
+}
+function _saveUserPresets(list) { localStorage.setItem(SYNTH_PRESET_KEY, JSON.stringify(list)); }
+
+function saveUserPreset(name) {
+    const list = getUserPresets();
+    const existing = list.findIndex(p => p.name === name);
+    const entry = { name, s: _getSynthState() };
+    if (existing >= 0) list[existing] = entry; else list.push(entry);
+    _saveUserPresets(list);
+    renderPresetList();
+    setStatus(`Preset "${name}" saved`);
+}
+
+function deleteUserPreset(name) {
+    _saveUserPresets(getUserPresets().filter(p => p.name !== name));
+    renderPresetList();
+}
+
+function applySynthPreset(s) {
+    // Update state
+    Object.assign(state, s);
+    // Update all slider/radio elements
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    const setDisp = (id, val, dec = 0) => { const el = document.getElementById(id); if (el) el.textContent = dec > 0 ? (+val).toFixed(dec) : Math.round(+val); };
+    const setRadio = (name, val) => { const r = document.querySelector(`[name=${name}][value="${val}"]`); if (r) r.checked = true; };
+    const setCb = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+
+    setRadio('waveform', s.waveform);
+    set('numOscs', s.numOscs);           setDisp('numOscsVal', s.numOscs);
+    set('detuneSpread', s.detuneSpread); setDisp('detuneSpreadVal', s.detuneSpread);
+    set('detune', s.detune);             setDisp('detuneVal', s.detune);
+    setRadio('filterType', s.filterType);
+    set('filterCutoff', s.filterCutoff); setDisp('filterCutoffVal', s.filterCutoff);
+    set('filterRes', s.filterRes);       setDisp('filterResVal', s.filterRes, 1);
+    setCb('lfoOn', s.lfoOn);
+    setRadio('lfoWave', s.lfoWave);
+    set('lfoRate', s.lfoRate);           setDisp('lfoRateVal', s.lfoRate, 2);
+    set('lfoDepth', s.lfoDepth);         setDisp('lfoDepthVal', s.lfoDepth);
+    setCb('chorusOn', s.chorusOn);
+    set('chorusRate', s.chorusRate);     setDisp('chorusRateVal', s.chorusRate, 1);
+    set('chorusDepth', s.chorusDepth);   setDisp('chorusDepthVal', s.chorusDepth, 1);
+    set('chorusMix', s.chorusMix);       setDisp('chorusMixVal', s.chorusMix, 2);
+    setRadio('driveType', s.driveType);
+    set('driveAmount', s.driveAmount);   setDisp('driveAmountVal', s.driveAmount);
+    set('masterVol', s.masterVol);       setDisp('masterVolVal', s.masterVol, 2);
+    set('reverb', s.reverb);             setDisp('reverbVal', s.reverb, 2);
+
+    // Apply to live audio if running
+    if (!audioCtx) return;
+    oscs.forEach(o => { o.type = s.waveform; });
+    _applyOscSettings();
+    filter.type = s.filterType;
+    filter.frequency.setTargetAtTime(s.filterCutoff, audioCtx.currentTime, 0.05);
+    filter.Q.setTargetAtTime(s.filterRes, audioCtx.currentTime, 0.05);
+    lfoOsc.type = s.lfoWave;
+    lfoOsc.frequency.setTargetAtTime(s.lfoRate, audioCtx.currentTime, 0.05);
+    lfoGainNode.gain.setTargetAtTime(s.lfoOn ? s.lfoDepth : 0, audioCtx.currentTime, 0.05);
+    _applyChorusMix();
+    _applyDrive();
+    masterGain.gain.setTargetAtTime(s.masterVol, audioCtx.currentTime, 0.05);
+    _applyReverbMix();
+}
+
+function renderPresetList() {
+    const list = document.getElementById('presetList');
+    if (!list) return;
+    list.innerHTML = '';
+    const makeRow = (name, isFactory, onLoad, onDel) => {
+        const row  = document.createElement('div'); row.className = 'preset-item';
+        const nm   = document.createElement('span'); nm.className = `preset-name${isFactory ? ' factory' : ''}`; nm.textContent = name; nm.title = name;
+        const load = document.createElement('button'); load.className = 'preset-load'; load.textContent = 'LOAD'; load.onclick = onLoad;
+        row.appendChild(nm); row.appendChild(load);
+        if (!isFactory) {
+            const del = document.createElement('button'); del.className = 'preset-del'; del.textContent = '✕'; del.title = 'Delete'; del.onclick = onDel;
+            row.appendChild(del);
+        }
+        list.appendChild(row);
+    };
+    FACTORY_PRESETS.forEach(p => makeRow(p.name, true, () => { applySynthPreset(p.s); setStatus(`Loaded: ${p.name}`); }, null));
+    getUserPresets().forEach(p => makeRow(p.name, false, () => { applySynthPreset(p.s); setStatus(`Loaded: ${p.name}`); }, () => { deleteUserPreset(p.name); }));
+}
+
 function init() {
     document.getElementById('btnStart').disabled = true; // re-enabled after MediaPipe loads
 
@@ -1283,23 +1657,70 @@ function init() {
         document.getElementById('toleranceVal').textContent = e.target.value;
     });
 
-    // Audio
+    // ── Synth controls ──────────────────────────────────────────────
+    // Oscillator
     document.querySelectorAll('[name=waveform]').forEach(r => r.addEventListener('change', () => {
         state.waveform = document.querySelector('[name=waveform]:checked').value;
-        if (osc) osc.type = state.waveform;
+        oscs.forEach(o => { o.type = state.waveform; });
     }));
-    document.getElementById('detune').addEventListener('input', e => {
-        state.detune = +e.target.value;
-        document.getElementById('detuneVal').textContent = e.target.value;
-        if (osc) osc.detune.setTargetAtTime(state.detune, audioCtx.currentTime, 0.05);
+    const synthSlider = (id, key, dispId, dec, fn) => {
+        const el = document.getElementById(id), d = document.getElementById(dispId);
+        el.addEventListener('input', () => {
+            state[key] = parseFloat(el.value);
+            d.textContent = dec > 0 ? parseFloat(el.value).toFixed(dec) : Math.round(el.value);
+            if (fn) fn();
+        });
+    };
+    synthSlider('numOscs',      'numOscs',      'numOscsVal',      0, () => { if (audioCtx) _applyOscSettings(); });
+    synthSlider('detuneSpread', 'detuneSpread', 'detuneSpreadVal', 0, () => { if (audioCtx) _applyOscSettings(); });
+    synthSlider('detune',       'detune',       'detuneVal',       0, () => { if (audioCtx) _applyOscSettings(); });
+
+    // Filter
+    document.querySelectorAll('[name=filterType]').forEach(r => r.addEventListener('change', () => {
+        state.filterType = document.querySelector('[name=filterType]:checked').value;
+        if (filter) filter.type = state.filterType;
+    }));
+    synthSlider('filterCutoff', 'filterCutoff', 'filterCutoffVal', 0, () => { if (filter) filter.frequency.setTargetAtTime(state.filterCutoff, audioCtx.currentTime, 0.05); });
+    synthSlider('filterRes',    'filterRes',    'filterResVal',    1, () => { if (filter) filter.Q.setTargetAtTime(state.filterRes, audioCtx.currentTime, 0.05); });
+
+    // LFO
+    document.getElementById('lfoOn').addEventListener('change', e => {
+        state.lfoOn = e.target.checked;
+        if (lfoGainNode) lfoGainNode.gain.setTargetAtTime(state.lfoOn ? state.lfoDepth : 0, audioCtx.currentTime, 0.1);
     });
-    document.getElementById('reverb').addEventListener('input', e => {
-        state.reverb = +e.target.value;
-        document.getElementById('reverbVal').textContent = (+e.target.value).toFixed(2);
-        if (reverbGain) {
-            reverbGain.gain.setTargetAtTime(state.reverb, audioCtx.currentTime, 0.1);
-        }
+    document.querySelectorAll('[name=lfoWave]').forEach(r => r.addEventListener('change', () => {
+        state.lfoWave = document.querySelector('[name=lfoWave]:checked').value;
+        if (lfoOsc) lfoOsc.type = state.lfoWave;
+    }));
+    synthSlider('lfoRate',  'lfoRate',  'lfoRateVal',  2, () => { if (lfoOsc) lfoOsc.frequency.setTargetAtTime(state.lfoRate, audioCtx.currentTime, 0.05); });
+    synthSlider('lfoDepth', 'lfoDepth', 'lfoDepthVal', 0, () => { if (lfoGainNode) lfoGainNode.gain.setTargetAtTime(state.lfoOn ? state.lfoDepth : 0, audioCtx.currentTime, 0.05); });
+
+    // Chorus
+    document.getElementById('chorusOn').addEventListener('change', e => { state.chorusOn = e.target.checked; if (audioCtx) _applyChorusMix(); });
+    synthSlider('chorusRate',  'chorusRate',  'chorusRateVal',  1, () => { if (audioCtx) _applyChorusMix(); });
+    synthSlider('chorusDepth', 'chorusDepth', 'chorusDepthVal', 1, () => { if (audioCtx) _applyChorusMix(); });
+    synthSlider('chorusMix',   'chorusMix',   'chorusMixVal',   2, () => { if (audioCtx) _applyChorusMix(); });
+
+    // Drive
+    document.querySelectorAll('[name=driveType]').forEach(r => r.addEventListener('change', () => {
+        state.driveType = document.querySelector('[name=driveType]:checked').value;
+        if (audioCtx) _applyDrive();
+    }));
+    synthSlider('driveAmount', 'driveAmount', 'driveAmountVal', 0, () => { if (audioCtx) _applyDrive(); });
+
+    // Master
+    synthSlider('masterVol', 'masterVol', 'masterVolVal', 2, () => { if (masterGain) masterGain.gain.setTargetAtTime(state.masterVol, audioCtx.currentTime, 0.05); });
+    synthSlider('reverb',    'reverb',    'reverbVal',    2, () => { if (audioCtx) _applyReverbMix(); });
+
+    // ── Preset system ───────────────────────────────────────────────
+    renderPresetList();
+    document.getElementById('btnSavePreset').addEventListener('click', () => {
+        const name = document.getElementById('presetName').value.trim();
+        if (!name) { setStatus('Enter a preset name first'); return; }
+        saveUserPreset(name);
+        document.getElementById('presetName').value = '';
     });
+    document.getElementById('presetName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnSavePreset').click(); });
 
     // Size & spacing
     document.getElementById('charSize').addEventListener('input', e => {
