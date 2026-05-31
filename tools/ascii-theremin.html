@@ -125,6 +125,11 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
                 <span style="color:var(--pink);">LEFT hand</span> up/down = pitch &nbsp;·&nbsp;
                 <span style="color:var(--pink);">RIGHT hand</span> up/down = volume
             </div>
+            <div style="font-size:10px;color:var(--gdim);margin-bottom:5px;margin-top:4px;">Right hand controls</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="rightHandMode" value="volume" checked> Volume &nbsp;<span style="color:var(--gdark);font-size:10px;">height = level</span></label>
+                <label><input type="radio" name="rightHandMode" value="filter"> Filter cutoff &nbsp;<span style="color:var(--gdark);font-size:10px;">open/close hand</span></label>
+            </div>
             <div class="ctrl">
                 <label>Hold time <span id="holdTimeVal">1.5</span>s</label>
                 <input type="range" id="holdTime" min="0.5" max="3" step="0.25" value="1.5">
@@ -546,6 +551,7 @@ const state = {
     // master
     masterVol: 0.7, reverb: 0.3,
     // game (theremin-specific)
+    rightHandMode: 'volume',   // 'volume' | 'filter'
     holdTime: 1.5, tolerance: 0.12,
 };
 
@@ -564,7 +570,20 @@ const game = {
 let handResults = null;
 // Latest derived values
 let leftFreq  = null;   // Hz from left-screen hand
-let rightGain = 0.5;    // 0-1 from right-screen hand
+let rightGain       = 0.5;   // 0-1 from right-screen hand
+let smoothedOpenness = 0.5;  // smoothed hand-openness for filter control
+
+// Derives continuous openness 0 (fist) → 1 (open) from landmark geometry.
+// Checks whether each fingertip sits above its middle knuckle (PIP joint).
+function handOpenness(landmarks) {
+    const tips = [8, 12, 16, 20];
+    const pips = [6, 10, 14, 18];
+    let extended = 0;
+    for (let i = 0; i < 4; i++) {
+        if (landmarks[tips[i]].y < landmarks[pips[i]].y) extended++;
+    }
+    return extended / 4;
+}
 
 // ─────────────────────────────────────────────────────────────────
 // TONE LUT  (full pipeline — identical to ascii-webcam)
@@ -635,9 +654,10 @@ function yToFreq(y) {
     return Math.exp(lo + (1 - y) * (hi - lo));
 }
 function wristYToFreq(wy) {
-    // Hand UP (small wy) = HIGH frequency, hand DOWN (large wy) = LOW frequency.
-    // Active zone: 8%–88% of frame height so low notes are reachable with arm lowered.
-    const n = Math.max(0, Math.min(1, (wy - 0.08) / 0.80));
+    // Hand UP (small wy) = HIGH frequency (C3), hand DOWN (large wy) = LOW frequency (C1).
+    // Active zone: 18%–78% — keeps both extremes comfortably inside the frame
+    // so C1 and C3 are reachable without the hand disappearing off screen.
+    const n = Math.max(0, Math.min(1, (wy - 0.18) / 0.60));
     return yToFreq(n);
 }
 function freqToNoteName(freq) {
@@ -1120,8 +1140,22 @@ function renderLoop(ts) {
             document.getElementById('hNote').textContent = '—';
         }
         if (rightHand) {
-            rightGain = Math.max(0, Math.min(1, 1 - rightHand[0].y));
-            if (masterGain) masterGain.gain.setTargetAtTime(rightGain * 0.7, audioCtx.currentTime, 0.05);
+            if (state.rightHandMode === 'volume') {
+                rightGain = Math.max(0, Math.min(1, 1 - rightHand[0].y));
+                if (masterGain) masterGain.gain.setTargetAtTime(rightGain * 0.7, audioCtx.currentTime, 0.05);
+            } else {
+                // Filter cutoff — map hand openness (0=fist, 1=open) to cutoff on log scale
+                const raw = handOpenness(rightHand);
+                smoothedOpenness = smoothedOpenness * 0.75 + raw * 0.25;
+                const lo = Math.log(80), hi = Math.log(8000);
+                const targetCutoff = Math.exp(lo + smoothedOpenness * (hi - lo));
+                if (filter) filter.frequency.setTargetAtTime(targetCutoff, audioCtx.currentTime, 0.06);
+                state.filterCutoff = targetCutoff;
+                const fEl = document.getElementById('filterCutoff');
+                if (fEl) fEl.value = targetCutoff;
+                const fDisp = document.getElementById('filterCutoffVal');
+                if (fDisp) fDisp.textContent = Math.round(targetCutoff);
+            }
         }
     } else {
         setOscGain(0);
@@ -1329,19 +1363,36 @@ function renderOverlay(leftHand, rightHand, ts) {
         }
     }
 
-    // ── Right hand — pink, volume ──
+    // ── Right hand — pink ──
     if (rightHand) {
         drawHandSkeleton(ctx, rightHand, W, H, '#ff2d78', 0.75);
 
-        const wrist  = rightHand[0];
-        const rx     = (state.mirror ? 1 - wrist.x : wrist.x) * W;
-        const ry     = wrist.y * H;
-        const barH   = 50, barW = 6;
-        const filled = rightGain * barH;
-        ctx.fillStyle = 'rgba(255,45,120,0.2)';
-        ctx.fillRect(rx + 12, ry - barH/2, barW, barH);
-        ctx.fillStyle = '#ff2d78';
-        ctx.fillRect(rx + 12, ry - barH/2 + (barH - filled), barW, filled);
+        const wrist = rightHand[0];
+        const rx    = (state.mirror ? 1 - wrist.x : wrist.x) * W;
+        const ry    = wrist.y * H;
+        const barH  = 50, barW = 6;
+
+        if (state.rightHandMode === 'volume') {
+            // Vertical bar showing volume level
+            const filled = rightGain * barH;
+            ctx.fillStyle = 'rgba(255,45,120,0.2)';
+            ctx.fillRect(rx + 12, ry - barH/2, barW, barH);
+            ctx.fillStyle = '#ff2d78';
+            ctx.fillRect(rx + 12, ry - barH/2 + (barH - filled), barW, filled);
+        } else {
+            // Horizontal bar showing hand openness (fist→open)
+            const barW2 = 50;
+            const filled2 = smoothedOpenness * barW2;
+            ctx.fillStyle = 'rgba(255,45,120,0.2)';
+            ctx.fillRect(rx - barW2/2, ry + 14, barW2, 5);
+            ctx.fillStyle = '#ff2d78';
+            ctx.fillRect(rx - barW2/2, ry + 14, filled2, 5);
+            // Label
+            ctx.font      = `${Math.round(H * 0.026)}px 'Share Tech Mono', monospace`;
+            ctx.fillStyle = 'rgba(255,45,120,0.7)';
+            ctx.textAlign = 'center';
+            ctx.fillText(smoothedOpenness < 0.25 ? 'FIST' : smoothedOpenness > 0.75 ? 'OPEN' : '···', rx, ry + 30);
+        }
     }
 
     // ── Score display ──
@@ -1355,15 +1406,17 @@ function renderOverlay(leftHand, rightHand, ts) {
         ctx.fillText('score', 10, 36);
     }
 
-    // ── Instructions if no hands detected ──
+    // ── Instructions if no hands detected — flashing red glow ──
     if (!leftHand && !rightHand && game.active) {
-        ctx.textAlign  = 'center';
-        ctx.font       = `${Math.round(H * 0.035)}px 'Share Tech Mono', monospace`;
-        ctx.fillStyle  = 'rgba(0,255,65,0.35)';
-        ctx.fillText('raise your hands', W / 2, H / 2 - 10);
-        ctx.fillStyle  = 'rgba(0,255,65,0.2)';
-        ctx.font       = `${Math.round(H * 0.025)}px 'Share Tech Mono', monospace`;
-        ctx.fillText('left = pitch  ·  right = volume', W / 2, H / 2 + 14);
+        // Pulse: ~1.2 s cycle, never fully invisible
+        const pulse = 0.4 + 0.6 * Math.abs(Math.sin(ts * 0.0032));
+        ctx.textAlign   = 'center';
+        ctx.shadowColor = '#ff2d78';
+        ctx.shadowBlur  = 22 * pulse;
+        ctx.font        = `${Math.round(H * 0.038)}px 'Share Tech Mono', monospace`;
+        ctx.fillStyle   = `rgba(255,45,120,${(0.7 * pulse).toFixed(2)})`;
+        ctx.fillText('RAISE YOUR HANDS', W / 2, H / 2 - 10);
+        ctx.shadowBlur  = 0;
     }
 }
 
@@ -1652,6 +1705,11 @@ function init() {
     });
 
     // Game settings
+    document.querySelectorAll('[name=rightHandMode]').forEach(r => r.addEventListener('change', () => {
+        state.rightHandMode = document.querySelector('[name=rightHandMode]:checked').value;
+        // Reset smoothed openness so there's no stale value on mode switch
+        smoothedOpenness = 0.5;
+    }));
     document.getElementById('holdTime').addEventListener('input', e => {
         state.holdTime = +e.target.value;
         document.getElementById('holdTimeVal').textContent = e.target.value;
@@ -1718,6 +1776,8 @@ function init() {
 
     // ── Preset system ───────────────────────────────────────────────
     renderPresetList();
+    // Load Cyber Lead as the default sound on startup
+    applySynthPreset(FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s);
     document.getElementById('btnSavePreset').addEventListener('click', () => {
         const name = document.getElementById('presetName').value.trim();
         if (!name) { setStatus('Enter a preset name first'); return; }
