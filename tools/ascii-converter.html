@@ -336,6 +336,14 @@ textarea.custom-chars:focus{border-color:var(--green);}
                     <label><input type="radio" name="cropAR" value="0.6667"> 2:3</label>
                     <label><input type="radio" name="cropAR" value="0.5625"> 9:16 &nbsp;<span style="color:var(--gdark);font-size:10px;">Phone</span></label>
                 </div>
+                <div class="check-row" style="margin-bottom:6px;">
+                    <input type="checkbox" id="cropFillHeight">
+                    <label for="cropFillHeight">Fill height &nbsp;<span style="color:var(--gdark);font-size:10px;">zoom to fill full canvas height</span></label>
+                </div>
+                <div class="ctrl">
+                    <label>Size <span id="cropScaleVal">100</span>% &nbsp;<span id="cropSizePx" style="font-size:10px;color:var(--gdark);"></span></label>
+                    <input type="range" id="cropScale" min="5" max="100" value="100">
+                </div>
                 <div style="font-size:10px;color:var(--gdim);margin-bottom:5px;">POSITION &nbsp;<span style="color:var(--gdark);">default: centre</span></div>
                 <div class="ctrl">
                     <label>Horizontal <span id="cropXVal">50</span>%</label>
@@ -586,21 +594,47 @@ const state = {
     shadows:       0,   // -1 darken  +1 brighten
     midtones:      0,
     highlights:    0,
-    cropEnabled:   false,
-    cropAR:        null,   // null = original, otherwise width/height ratio
-    cropX:         0.5,    // 0=left  0.5=centre  1=right
-    cropY:         0.5,    // 0=top   0.5=centre  1=bottom
+    cropEnabled:    false,
+    cropAR:         null,   // null = original, otherwise width/height ratio
+    cropFillHeight: false,  // fill full canvas height even if source is wider
+    cropScale:      1.0,    // 1.0 = max fitting size, smaller = zoomed in
+    cropX:          0.5,    // 0=left  0.5=centre  1=right
+    cropY:          0.5,    // 0=top   0.5=centre  1=bottom
 };
 
 function getCropRegion(videoW, videoH) {
     if (!state.cropEnabled || !state.cropAR) return { x:0, y:0, w:videoW, h:videoH };
-    const ar  = state.cropAR;
-    let cropW = videoH * ar, cropH = videoH;
-    if (cropW > videoW) { cropW = videoW; cropH = videoW / ar; }
-    const maxX = videoW - cropW, maxY = videoH - cropH;
+    const ar = state.cropAR;
+
+    // Determine max crop region.
+    // Fill-height mode: always drive from full video height — if the derived
+    // width exceeds the video width, sampleCell pads those pixels with black
+    // so the canvas shows symmetric bars on the sides.
+    // Default mode: largest rectangle of the selected AR that fits within the
+    // video bounds (no out-of-bounds sampling).
+    let maxH, maxW;
+    if (state.cropFillHeight) {
+        maxH = videoH;
+        maxW = videoH * ar;
+    } else {
+        maxW = videoH * ar;
+        maxH = videoH;
+        if (maxW > videoW) { maxW = videoW; maxH = videoW / ar; }
+    }
+
+    const cropW = maxW * state.cropScale;
+    const cropH = maxH * state.cropScale;
+
+    const maxX = videoW - cropW;
+    const maxY = videoH - cropH;
+
+    // When crop overflows video width (maxX < 0), centre it for symmetric bars.
+    const x = maxX < 0 ? maxX / 2 : state.cropX * maxX;
+    const y = state.cropY * maxY;
+
     return {
-        x: Math.round(state.cropX * maxX),
-        y: Math.round(state.cropY * maxY),
+        x: Math.round(x),
+        y: Math.round(y),
         w: Math.round(cropW),
         h: Math.round(cropH),
     };
@@ -675,12 +709,15 @@ function applyTone(luma) {
 function sampleCell(pixels, vw, col, row, cols, rows, crop) {
     const cx = crop ? crop.x : 0,   cy = crop ? crop.y : 0;
     const cw = crop ? crop.w : vw,   ch = crop ? crop.h : (pixels.length / 4 / vw);
+    const vh = pixels.length / 4 / vw;
     const cellW = cw / cols, cellH = ch / rows;
     const sx = cx + Math.floor(col * cellW),     ex = cx + Math.floor((col + 1) * cellW);
     const sy = cy + Math.floor(row * cellH),     ey = cy + Math.floor((row + 1) * cellH);
     let r = 0, g = 0, b = 0, n = 0;
     for (let y = sy; y < ey; y++) {
         for (let x = sx; x < ex; x++) {
+            // Out-of-bounds pixels (letterbox bars) count as black
+            if (x < 0 || x >= vw || y < 0 || y >= vh) { n++; continue; }
             const idx = (y * vw + x) * 4;
             r += pixels[idx]; g += pixels[idx+1]; b += pixels[idx+2];
             n++;
@@ -795,9 +832,64 @@ function capturePreviewFrame(pct) {
     }
 }
 
+// Always samples from previewPixels with current crop — used by crop controls
+// regardless of whether frames have been processed
+const requestCropPreview = debounce(() => {
+    if (!state.previewPixels) return;
+    const pixels = state.previewPixels.data;
+    const vw = state.previewPixels.width, vh = state.previewPixels.height;
+    const cols = state.cols, rows = state.rows;
+    const crop = getCropRegion(vw, vh);
+    const lumaMap = new Float32Array(cols * rows);
+    const rMap    = new Float32Array(cols * rows);
+    const gMap    = new Float32Array(cols * rows);
+    const bMap    = new Float32Array(cols * rows);
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const cell = sampleCell(pixels, vw, c, r, cols, rows, crop);
+            const i = r * cols + c;
+            lumaMap[i] = cell.luma / 255;
+            rMap[i]    = cell.r    / 255;
+            gMap[i]    = cell.g    / 255;
+            bMap[i]    = cell.b    / 255;
+        }
+    }
+    // Snapshot DOM state that renderFrame mutates — restoring these prevents
+    // toolbar height changes (from frameInfo text length) from shifting
+    // canvasWrap.clientHeight and causing resizeCanvas to pick a different scale.
+    const canvas      = document.getElementById('previewCanvas');
+    const frameInfoEl = document.getElementById('frameInfo');
+    const scrubberEl  = document.getElementById('scrubber');
+    const savedW = canvas.width, savedH = canvas.height, savedPS = canvas._previewScale;
+    const savedFrameInfo = frameInfoEl.textContent;
+    const savedScrubber  = scrubberEl.value;
+
+    const savedFrames = state.frames, savedCount = state.frameCount;
+    state.frames = [{ luma: lumaMap, r: rMap, g: gMap, b: bMap }];
+    state.frameCount = 1;
+    renderFrame(0);
+    state.frames = savedFrames;
+    state.frameCount = savedCount;
+
+    // Restore DOM text so toolbar height is stable across crop-preview renders
+    frameInfoEl.textContent = savedFrameInfo;
+    scrubberEl.value = savedScrubber;
+
+    // If canvas dimensions changed for any reason, restore and re-render
+    if (canvas.width !== savedW || canvas.height !== savedH) {
+        canvas.width = savedW; canvas.height = savedH; canvas._previewScale = savedPS;
+        state.frames = [{ luma: lumaMap, r: rMap, g: gMap, b: bMap }];
+        state.frameCount = 1;
+        renderFrame(0);
+        state.frames = savedFrames;
+        state.frameCount = savedCount;
+        frameInfoEl.textContent = savedFrameInfo;
+        scrubberEl.value = savedScrubber;
+    }
+}, 60);
+
 function renderPreview() {
     if (!state.previewPixels || state.processing) return;
-    // Skip if processed frames already exist — use renderFrame instead
     if (state.frames.length) { renderFrame(state.currentFrame); return; }
 
     const pixels = state.previewPixels.data;
@@ -1378,7 +1470,7 @@ function getCurrentSettings() {
     return {
         cols: state.cols, fps: state.fps,
         charSize: state.charSize, charSpacingH: state.charSpacingH, charSpacingV: state.charSpacingV,
-        cropEnabled: state.cropEnabled, cropAR: state.cropAR, cropX: state.cropX, cropY: state.cropY,
+        cropEnabled: state.cropEnabled, cropAR: state.cropAR, cropFillHeight: state.cropFillHeight, cropScale: state.cropScale, cropX: state.cropX, cropY: state.cropY,
         colorMode: state.colorMode,
         charSet:     document.querySelector('[name=charSet]:checked')?.value    || 'standard',
         customChars: document.getElementById('customChars').value,
@@ -1421,6 +1513,11 @@ function applySettings(s) {
     const arR   = document.querySelector(`[name=cropAR][value="${arVal}"]`);
     if (arR) arR.checked = true;
     else { const orig = document.querySelector('[name=cropAR][value="original"]'); if (orig) orig.checked = true; }
+    state.cropFillHeight = !!s.cropFillHeight;
+    document.getElementById('cropFillHeight').checked = state.cropFillHeight;
+    state.cropScale = s.cropScale ?? 1.0;
+    document.getElementById('cropScale').value = Math.round(state.cropScale * 100);
+    document.getElementById('cropScaleVal').textContent = Math.round(state.cropScale * 100);
     state.cropX = s.cropX; state.cropY = s.cropY;
     document.getElementById('cropX').value = s.cropX * 100;
     document.getElementById('cropY').value = s.cropY * 100;
@@ -1439,7 +1536,7 @@ function applySettings(s) {
     document.getElementById('customChars').value = s.customChars || '';
 
     // Checkboxes
-    ['glowOn','caOn','caAnimated','scanlines','vignette','invert'].forEach(id => {
+    ['glowOn','glowLuma','caOn','caAnimated','scanlines','vignette','invert'].forEach(id => {
         state[id] = s[id];
         document.getElementById(id).checked = s[id];
     });
@@ -1655,27 +1752,50 @@ function init() {
     document.getElementById('cropEnabled').addEventListener('change', e => {
         state.cropEnabled = e.target.checked;
         document.getElementById('cropControls').style.display = e.target.checked ? 'block' : 'none';
-        updateRows(); resizeCanvas();
-        requestRender();
+        if (!state.frames.length) updateRows();
+        resizeCanvas();
+        requestCropPreview();
     });
 
     document.querySelectorAll('[name=cropAR]').forEach(r => r.addEventListener('change', () => {
         const v = document.querySelector('[name=cropAR]:checked').value;
         state.cropAR = v === 'original' ? null : parseFloat(v);
-        updateRows(); resizeCanvas();
-        requestRender();
+        if (!state.frames.length) updateRows();
+        resizeCanvas();
+        requestCropPreview();
     }));
+
+    document.getElementById('cropFillHeight').addEventListener('change', e => {
+        state.cropFillHeight = e.target.checked;
+        if (!state.frames.length) updateRows();
+        resizeCanvas();
+        requestCropPreview();
+        requestRender();
+    });
+
+    document.getElementById('cropScale').addEventListener('input', e => {
+        state.cropScale = +e.target.value / 100;
+        document.getElementById('cropScaleVal').textContent = e.target.value;
+        // Update px readout here (synchronous) so getCropRegion stays a pure function
+        if (state.cropEnabled && state.cropAR && state.previewPixels) {
+            const vh = state.previewPixels.height;
+            const mW = vh * state.cropAR, mH = vh;
+            const pxEl = document.getElementById('cropSizePx');
+            if (pxEl) pxEl.textContent = `(${Math.round(mW * state.cropScale)} × ${Math.round(mH * state.cropScale)} px)`;
+        }
+        requestCropPreview();
+    });
 
     document.getElementById('cropX').addEventListener('input', e => {
         state.cropX = +e.target.value / 100;
         document.getElementById('cropXVal').textContent = e.target.value;
-        requestRender();
+        requestCropPreview();
     });
 
     document.getElementById('cropY').addEventListener('input', e => {
         state.cropY = +e.target.value / 100;
         document.getElementById('cropYVal').textContent = e.target.value;
-        requestRender();
+        requestCropPreview();
     });
 
     // Collapsible sections
