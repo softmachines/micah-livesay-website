@@ -479,24 +479,28 @@ import { HandLandmarker, FilesetResolver }
 // ─────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────
-const FREQ_MIN = 120;   // Hz — bottom of theremin range
-const FREQ_MAX = 600;   // Hz — top of theremin range
+const FREQ_MIN = 32.70;   // C1
+const FREQ_MAX = 130.81;  // C3
 
 const GAME_NOTES = [
-    { name:'C3', freq:130.81 }, { name:'Eb3', freq:155.56 },
-    { name:'G3', freq:196.00 }, { name:'Bb3', freq:233.08 },
-    { name:'C4', freq:261.63 }, { name:'Eb4', freq:311.13 },
-    { name:'F4', freq:349.23 }, { name:'G4', freq:392.00 },
-    { name:'Bb4', freq:466.16 }, { name:'C5', freq:523.25 },
+    { name:'C1',  freq:32.70  }, { name:'Eb1', freq:38.89  },
+    { name:'G1',  freq:49.00  }, { name:'Bb1', freq:58.27  },
+    { name:'C2',  freq:65.41  }, { name:'Eb2', freq:77.78  },
+    { name:'F2',  freq:87.31  }, { name:'G2',  freq:98.00  },
+    { name:'Bb2', freq:116.54 }, { name:'C3',  freq:130.81 },
 ];
 
 // All notes for the right-hand ruler label
 const RULER_NOTES = [
-    { name:'C3',  freq:130.81 }, { name:'E3',  freq:164.81 },
-    { name:'G3',  freq:196.00 }, { name:'A3',  freq:220.00 },
-    { name:'C4',  freq:261.63 }, { name:'E4',  freq:329.63 },
-    { name:'G4',  freq:392.00 }, { name:'A4',  freq:440.00 },
-    { name:'C5',  freq:523.25 },
+    { name:'C1', freq:32.70  },
+    { name:'E1', freq:41.20  },
+    { name:'G1', freq:49.00  },
+    { name:'A1', freq:55.00  },
+    { name:'C2', freq:65.41  },
+    { name:'E2', freq:82.41  },
+    { name:'G2', freq:98.00  },
+    { name:'A2', freq:110.00 },
+    { name:'C3', freq:130.81 },
 ];
 
 const HAND_CONNECTIONS = [
