@@ -88,7 +88,6 @@ textarea.custom-chars:focus{border-color:var(--green);}
 .preview-toolbar .pt-info{color:var(--gdim);font-size:11px;margin-left:auto;}
 .canvas-wrap{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;position:relative;}
 #previewCanvas{display:block;image-rendering:pixelated;}
-#previewWrap{line-height:0;position:relative;}
 .no-video{color:var(--gdim);text-align:center;}
 .no-video .nv-icon{font-size:32px;margin-bottom:8px;opacity:.4;}
 
@@ -503,12 +502,9 @@ textarea.custom-chars:focus{border-color:var(--green);}
                 <div class="nv-icon">▶</div>
                 <div>Load a video to begin</div>
             </div>
-            <!-- Wrapper keeps bloom exactly aligned with the preview canvas -->
-            <div id="previewWrap" style="display:none;position:relative;line-height:0;">
-                <canvas id="previewCanvas"></canvas>
-                <!-- Bloom: position:absolute inset:0 means it overlays the canvas exactly -->
-                <canvas id="asciiBloom" style="display:none;position:absolute;inset:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen;"></canvas>
-            </div>
+            <canvas id="previewCanvas" style="display:none;"></canvas>
+            <!-- Bloom canvas — JS syncs its CSS position/size to previewCanvas after each render -->
+            <canvas id="asciiBloom" style="display:none;position:absolute;pointer-events:none;mix-blend-mode:screen;"></canvas>
             <!-- CRT overlays — same stack as the main site -->
             <div class="crt-scanlines"></div>
             <div class="crt-glass-overlay"></div>
@@ -728,7 +724,7 @@ function capturePreviewFrame(pct) {
     const doCapture = () => {
         offCtx.drawImage(video, 0, 0);
         state.previewPixels = offCtx.getImageData(0, 0, offC.width, offC.height);
-        document.getElementById('previewWrap').style.display = 'block';
+        document.getElementById('previewCanvas').style.display = 'block';
         document.querySelector('.no-video').style.display = 'none';
         renderPreview();
     };
@@ -841,7 +837,7 @@ function processAllFrames() {
             document.getElementById('btnStop').disabled = false;
             document.getElementById('scrubber').disabled = false;
             document.getElementById('scrubber').max = state.frameCount - 1;
-            document.getElementById('previewWrap').style.display = 'block';
+            document.getElementById('previewCanvas').style.display = 'block';
             document.querySelector('.no-video').style.display = 'none';
             setStatus(`✓ Done — ${state.frameCount} frames ready. Press PLAY ▶`);
             setInfo();
@@ -953,20 +949,25 @@ function renderFrame(idx) {
         ctx.restore();
     }
 
-    // Bloom glow — downscale crisp frame to a small canvas, apply CSS blur via GPU.
-    // Zero shadowBlur in the character loop means zero per-char GPU state flushes.
+    // Bloom glow — downscale to small canvas, CSS blur via GPU (no shadowBlur in loop).
     const bloom = document.getElementById('asciiBloom');
     if (state.glowOn && bloom) {
-        if (bloom.width !== Math.ceil(canvas.width * 0.25) || bloom.height !== Math.ceil(canvas.height * 0.25)) {
-            bloom.width  = Math.max(1, Math.ceil(canvas.width  * 0.25));
-            bloom.height = Math.max(1, Math.ceil(canvas.height * 0.25));
-        }
-        bloom.getContext('2d').drawImage(canvas, 0, 0, bloom.width, bloom.height);
-        // luma-driven: add contrast so bright chars bloom much more than dark ones
-        const contrast  = state.glowLuma ? ' contrast(3)' : '';
-        const blurPx    = Math.max(1, state.glowBlur);
-        const bright    = 1 + state.glowAlpha * 2;
-        bloom.style.filter  = `blur(${blurPx}px) brightness(${bright.toFixed(2)})${contrast}`;
+        // Set pixel resolution to 25% of canvas for cheap blur
+        const bw = Math.max(1, Math.ceil(canvas.width  * 0.25));
+        const bh = Math.max(1, Math.ceil(canvas.height * 0.25));
+        if (bloom.width !== bw || bloom.height !== bh) { bloom.width = bw; bloom.height = bh; }
+        bloom.getContext('2d').drawImage(canvas, 0, 0, bw, bh);
+
+        // Sync CSS position/size to exactly match previewCanvas in the layout —
+        // uses offsetLeft/Top/Width/Height so it's correct regardless of crop,
+        // char size, spacing or any other sizing controls
+        bloom.style.left   = canvas.offsetLeft   + 'px';
+        bloom.style.top    = canvas.offsetTop    + 'px';
+        bloom.style.width  = canvas.offsetWidth  + 'px';
+        bloom.style.height = canvas.offsetHeight + 'px';
+
+        const contrast = state.glowLuma ? ' contrast(3)' : '';
+        bloom.style.filter  = `blur(${Math.max(1, state.glowBlur)}px) brightness(${(1 + state.glowAlpha * 2).toFixed(2)})${contrast}`;
         bloom.style.opacity = state.glowAlpha;
         bloom.style.display = 'block';
     } else if (bloom) {
@@ -1120,7 +1121,7 @@ function loadSession(file) {
             });
             const scrubber = document.getElementById('scrubber');
             scrubber.disabled = false; scrubber.max = state.frameCount - 1;
-            document.getElementById('previewWrap').style.display = 'block';
+            document.getElementById('previewCanvas').style.display = 'block';
             document.querySelector('.no-video').style.display = 'none';
             document.getElementById('frameInfo').textContent = `Session — ${state.frameCount} frames @ ${state.fps}fps`;
 
@@ -1257,36 +1258,47 @@ function loadVideo(file) {
     };
 }
 
+function _charCells() {
+    return {
+        w: Math.max(0.5, state.charSize * 0.6 + state.charSpacingH),
+        h: Math.max(0.5, state.charSize       + state.charSpacingV),
+    };
+}
+
 function updateRows() {
-    if (!state.videoEl) return;
+    if (!state.videoEl && !state.frames.length) return;
     const ar = (state.cropEnabled && state.cropAR)
         ? state.cropAR
-        : state.videoEl.videoWidth / state.videoEl.videoHeight;
-    state.rows = Math.round(state.cols / ar * 0.45);
+        : (state.videoEl ? state.videoEl.videoWidth / state.videoEl.videoHeight : 16/9);
+    // Derive rows from actual char cell dimensions so the output aspect
+    // ratio matches the crop AR regardless of size or spacing settings
+    const { w, h } = _charCells();
+    state.rows = Math.max(1, Math.round(state.cols * w / (h * ar)));
     document.getElementById('rowsVal').textContent = state.rows;
 }
 
 function resizeCanvas() {
-    if (!state.videoEl) return;
+    if (!state.videoEl && !state.frames.length) return;
     const wrap   = document.getElementById('canvasWrap');
     const canvas = document.getElementById('previewCanvas');
 
-    // Natural output size: cols × charCellW  by  rows × charCellH
-    const charCellW = state.charSize * 0.6 + state.charSpacingH;
-    const charCellH = state.charSize       + state.charSpacingV;
+    // Only recalculate rows when in preview mode.
+    // After processing, state.rows is locked to the frame data dimensions —
+    // changing it would cause renderFrame to read the wrong number of rows.
+    if (!state.frames.length) updateRows();
+
+    const { w: charCellW, h: charCellH } = _charCells();
     const natW = state.cols * charCellW;
     const natH = state.rows * charCellH;
 
-    // Scale to fit preview area
     const maxW = wrap.clientWidth  - 32;
     const maxH = wrap.clientHeight - 32;
-    const scale = Math.min(maxW / natW, maxH / natH, 2); // cap at 2× to avoid giant canvases
+    const scale = Math.min(maxW / natW, maxH / natH, 2);
 
     canvas.width  = Math.round(natW * scale);
     canvas.height = Math.round(natH * scale);
     canvas._previewScale = scale;
 
-    // Show natural output dimensions
     const el = document.getElementById('outputSize');
     if (el) el.textContent = `${Math.round(natW)} × ${Math.round(natH)} px`;
 }
