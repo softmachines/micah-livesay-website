@@ -279,7 +279,14 @@ textarea.custom-chars:focus{border-color:var(--green);}
             </div>
             <div class="ctrl">
                 <label>Frame rate <span id="fpsVal">10</span> fps</label>
-                <input type="range" id="fps" min="5" max="15" value="10">
+                <input type="range" id="fps" min="1" max="60" value="10">
+            </div>
+            <div class="check-row" style="margin-bottom:4px;">
+                <input type="checkbox" id="nativeFps">
+                <label for="nativeFps">Use native frame rate</label>
+            </div>
+            <div id="nativeFpsRow" style="display:none;align-items:center;gap:8px;margin-bottom:8px;padding-left:20px;">
+                <span id="detectedFpsLabel" style="font-size:10px;color:var(--gdim);">Not detected</span>
             </div>
         </div>
     </div>
@@ -571,6 +578,8 @@ const state = {
     scanlines:     false,
     vignette:      false,
     caPhase:       0,
+    nativeFps:     false,
+    detectedFps:   null,
     charSize:      2,   // px — font size at export resolution
     charSpacingH:  0,   // px — extra horizontal gap between chars
     charSpacingV:  1,   // px — extra vertical gap between chars
@@ -704,6 +713,54 @@ function applyEdgeBoost(lumaMap, cols, rows, strength) {
         }
     }
     return out;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// NATIVE FPS DETECTION
+// ─────────────────────────────────────────────────────────────────
+function detectVideoFPS(video, onResult) {
+    if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) {
+        onResult(null, 'requestVideoFrameCallback not supported in this browser');
+        return;
+    }
+
+    const label     = document.getElementById('detectedFpsLabel');
+    const savedTime = video.currentTime;
+    const savedMuted = video.muted;
+    label.textContent = 'Detecting...';
+
+    let frames = 0, startTime = null;
+    const MEASURE_MS = 800; // measure over ~0.8s
+
+    const onFrame = (now) => {
+        if (startTime === null) { startTime = now; }
+        frames++;
+        if (now - startTime < MEASURE_MS) {
+            video.requestVideoFrameCallback(onFrame);
+        } else {
+            // Done — pause and restore position
+            video.pause();
+            video.currentTime = savedTime;
+            video.muted = savedMuted;
+
+            const fps = Math.round(frames / ((now - startTime) / 1000));
+            onResult(Math.max(1, fps), null);
+        }
+    };
+
+    video.muted = true;
+    video.play().then(() => video.requestVideoFrameCallback(onFrame))
+        .catch(() => onResult(null, 'Playback blocked'));
+}
+
+function applyNativeFps(fps) {
+    state.detectedFps = fps;
+    state.fps = fps;
+    const slider = document.getElementById('fps');
+    slider.max   = Math.max(60, fps);
+    slider.value = fps;
+    document.getElementById('fpsVal').textContent = fps;
+    document.getElementById('detectedFpsLabel').textContent = `Native: ${fps} fps`;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1657,6 +1714,39 @@ function init() {
     document.getElementById('btnCopyEmbed').disabled = false; // always available for template
 
     window.addEventListener('resize', () => { resizeCanvas(); if (state.frames.length) renderFrame(state.currentFrame); });
+
+    // Native fps — auto-detects on toggle, locks slider to detected value
+    document.getElementById('nativeFps').addEventListener('change', e => {
+        state.nativeFps = e.target.checked;
+        const row    = document.getElementById('nativeFpsRow');
+        const slider = document.getElementById('fps');
+        row.style.display = e.target.checked ? 'flex' : 'none';
+        slider.disabled   = e.target.checked;
+
+        if (e.target.checked) {
+            if (state.detectedFps) {
+                // Already detected — just apply
+                applyNativeFps(state.detectedFps);
+            } else if (state.videoEl) {
+                // Auto-detect on toggle
+                document.getElementById('detectedFpsLabel').textContent = 'Detecting…';
+                detectVideoFPS(state.videoEl, (fps, err) => {
+                    if (err) {
+                        document.getElementById('detectedFpsLabel').textContent = err;
+                    } else {
+                        applyNativeFps(fps);
+                    }
+                });
+            } else {
+                document.getElementById('detectedFpsLabel').textContent = 'Load a video first';
+            }
+        } else {
+            // Restore manual value
+            slider.value = state.fps;
+            document.getElementById('fpsVal').textContent = state.fps;
+        }
+    });
+
 
     // Preset controls
     document.getElementById('btnSavePreset').addEventListener('click', savePreset);
