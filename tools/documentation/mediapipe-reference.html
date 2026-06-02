@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediaPipe Reference // ASCII Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+    --green:  #00ff41;
+    --gdim:   #00b32c;
+    --gdark:  #003d0f;
+    --pink:   #ff2d78;
+    --cyan:   #00ffcc;
+    --bg:     #010802;
+    --panel:  #060e07;
+    --border: #0a2010;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{min-height:100%;background:var(--bg);font-family:'Share Tech Mono',monospace;color:var(--green);font-size:13px;line-height:1.6;}
+
+/* ── LAYOUT ── */
+.page{max-width:1100px;margin:0 auto;padding:32px 24px 80px;}
+
+/* ── HEADER ── */
+.site-header{border-bottom:1px solid var(--gdark);padding-bottom:20px;margin-bottom:40px;}
+.site-header h1{color:var(--pink);font-size:22px;letter-spacing:3px;text-shadow:0 0 12px rgba(255,45,120,.5);margin-bottom:6px;}
+.site-header p{color:var(--gdim);font-size:11px;}
+.back-link{color:var(--gdim);text-decoration:none;font-size:11px;border:1px solid var(--gdark);padding:3px 10px;float:right;transition:all .15s;}
+.back-link:hover{border-color:var(--green);color:var(--green);}
+
+/* ── SECTION ── */
+.section{margin-bottom:52px;}
+.section-title{color:var(--cyan);font-size:15px;letter-spacing:2px;border-bottom:1px solid var(--gdark);padding-bottom:8px;margin-bottom:20px;text-shadow:0 0 8px rgba(0,255,204,.3);}
+.section-title::before{content:'// ';color:var(--gdark);}
+.subsection-title{color:var(--pink);font-size:12px;letter-spacing:1px;margin:24px 0 10px;text-shadow:0 0 6px rgba(255,45,120,.3);}
+.subsection-title::before{content:'— ';}
+p{color:var(--gdim);margin-bottom:12px;font-size:12px;}
+.note{background:var(--panel);border-left:2px solid var(--cyan);padding:10px 14px;margin-bottom:16px;font-size:11px;color:var(--gdim);}
+.note strong{color:var(--cyan);}
+.warn{background:var(--panel);border-left:2px solid var(--pink);padding:10px 14px;margin-bottom:16px;font-size:11px;color:var(--gdim);}
+.warn strong{color:var(--pink);}
+
+/* ── TABLES ── */
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;}
+thead tr{background:rgba(0,255,65,.04);border-bottom:1px solid var(--gdark);}
+th{color:var(--gdim);text-align:left;padding:8px 12px;letter-spacing:1px;font-size:10px;}
+td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:top;}
+td:first-child{color:var(--green);white-space:nowrap;}
+td.val{color:var(--cyan);}
+td.desc{color:var(--gdim);}
+td.range{color:rgba(255,215,0,.7);white-space:nowrap;}
+tr:hover td{background:rgba(0,255,65,.02);}
+.tag{display:inline-block;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.2);color:var(--cyan);font-size:9px;padding:1px 6px;margin:1px 2px;letter-spacing:1px;}
+.tag.pink{background:rgba(255,45,120,.08);border-color:rgba(255,45,120,.2);color:var(--pink);}
+.tag.green{background:rgba(0,255,65,.08);border-color:rgba(0,255,65,.2);color:var(--green);}
+
+/* ── CODE ── */
+code{background:var(--panel);border:1px solid var(--gdark);padding:1px 6px;color:var(--cyan);font-family:inherit;font-size:11px;}
+pre{background:var(--panel);border:1px solid var(--gdark);padding:16px;margin:12px 0 20px;overflow-x:auto;color:var(--gdim);font-size:11px;line-height:1.7;}
+pre .kw{color:var(--pink);}
+pre .str{color:rgba(255,215,0,.8);}
+pre .comment{color:var(--gdark);}
+pre .fn{color:var(--cyan);}
+pre .val{color:var(--green);}
+
+/* ── GRID ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+@media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr;}}
+.card{background:var(--panel);border:1px solid var(--gdark);padding:14px;font-size:11px;}
+.card h4{color:var(--green);margin-bottom:6px;font-size:12px;}
+.card p{margin:0;font-size:11px;}
+
+/* ── NAV ── */
+.toc{background:var(--panel);border:1px solid var(--gdark);padding:16px 20px;margin-bottom:40px;display:inline-block;}
+.toc h3{color:var(--gdim);font-size:10px;letter-spacing:2px;margin-bottom:10px;}
+.toc a{display:block;color:var(--gdim);text-decoration:none;font-size:11px;padding:2px 0;transition:color .1s;}
+.toc a:hover{color:var(--green);}
+.toc a::before{content:'▶ ';}
+
+/* ── FACE DIAGRAM ── */
+.blend-group{margin-bottom:24px;}
+.blend-group-title{color:var(--green);font-size:11px;letter-spacing:1px;margin-bottom:6px;opacity:.7;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="site-header">
+    <a href="../ascii-theremin.html" class="back-link">← THEREMIN</a>
+    <h1>MEDIAPIPE // BROWSER REFERENCE</h1>
+    <p>Gesture recognition · Facial blendshapes · Face Stylizer artwork guide &nbsp;·&nbsp; All models run locally via WebAssembly + WebGL</p>
+</header>
+
+<!-- TABLE OF CONTENTS -->
+<nav class="toc">
+    <h3>CONTENTS</h3>
+    <a href="#gestures">Gesture Recognition — named gestures</a>
+    <a href="#blendshapes">Face Blendshapes — all 52 coefficients</a>
+    <a href="#landmarks">Face Landmark regions</a>
+    <a href="#stylizer">Face Stylizer — artist brief</a>
+    <a href="#integration">Integration patterns</a>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="gestures">
+    <h2 class="section-title">GESTURE RECOGNITION</h2>
+
+    <p>The <code>GestureRecognizer</code> model returns one of the following named gesture labels per detected hand, along with a confidence score (0.0–1.0) and the full 21 hand landmarks. It can detect up to 2 hands simultaneously.</p>
+
+    <div class="note">
+        <strong>CDN import:</strong><br>
+        <code>import { GestureRecognizer, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3'</code>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Label string</th>
+                <th>Description</th>
+                <th>Reliable range</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Closed_Fist</code></td>
+                <td class="desc">All four fingers curled into palm, thumb tucked or alongside</td>
+                <td class="range">0.85 – 1.0</td>
+                <td class="desc">Most reliable gesture. Loose fists (e.g. holding something) may score lower.</td>
+            </tr>
+            <tr>
+                <td><code>Open_Palm</code></td>
+                <td class="desc">All five digits fully extended and spread, palm facing camera</td>
+                <td class="range">0.80 – 1.0</td>
+                <td class="desc">Requires relatively frontal palm orientation. Side-on hands score lower.</td>
+            </tr>
+            <tr>
+                <td><code>Pointing_Up</code></td>
+                <td class="desc">Index finger extended upward, remaining fingers curled</td>
+                <td class="range">0.75 – 1.0</td>
+                <td class="desc">Confused with "Victory" if middle finger partially extends. Angle-sensitive.</td>
+            </tr>
+            <tr>
+                <td><code>Thumb_Up</code></td>
+                <td class="desc">Thumb extended upward, remaining fingers curled into fist</td>
+                <td class="range">0.80 – 1.0</td>
+                <td class="desc">Also detects horizontal thumbs up. Thumb pointing down ≠ Thumb_Down without rotation.</td>
+            </tr>
+            <tr>
+                <td><code>Thumb_Down</code></td>
+                <td class="desc">Thumb pointing downward, remaining fingers curled</td>
+                <td class="range">0.70 – 1.0</td>
+                <td class="desc">Less reliable than Thumb_Up. Requires clear downward orientation.</td>
+            </tr>
+            <tr>
+                <td><code>Victory</code></td>
+                <td class="desc">Index and middle fingers extended in a V, others curled. The peace sign.</td>
+                <td class="range">0.80 – 1.0</td>
+                <td class="desc">Works palm-facing or back-of-hand. Finger spread angle doesn't matter much.</td>
+            </tr>
+            <tr>
+                <td><code>ILoveYou</code></td>
+                <td class="desc">Index finger, pinky, and thumb extended. Rock/metal horns with thumb out.</td>
+                <td class="range">0.75 – 1.0</td>
+                <td class="desc">Thumb must be clearly extended to distinguish from standard horns gesture.</td>
+            </tr>
+            <tr>
+                <td><code>None</code></td>
+                <td class="desc">No gesture classified — hand detected but no match found</td>
+                <td class="range">—</td>
+                <td class="desc">Returned when hand is visible but gesture confidence falls below threshold.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="warn">
+        <strong>Important:</strong> These are the only 7 named gestures the built-in model recognises. You cannot detect arbitrary gestures (e.g. "OK sign", "crossed fingers") without training a custom classification layer on top of the hand landmarks. The alternative — computing gesture from landmark geometry directly — is covered in the theremin codebase (<code>handOpenness()</code>).
+    </div>
+
+    <h3 class="subsection-title">Confidence thresholds in practice</h3>
+    <p>The model returns <code>gestures[handIndex][0].score</code>. A threshold of <code>0.7</code> works well as a trigger point — below that, treat as "None". For held states (e.g. "hold fist for 1s"), smooth the score with an exponential moving average to avoid flickering.</p>
+
+    <pre><code><span class="kw">const</span> result = gestureRecognizer.<span class="fn">recognizeForVideo</span>(videoEl, performance.<span class="fn">now</span>());
+<span class="kw">const</span> gesture = result.gestures[<span class="val">0</span>]?.[<span class="val">0</span>];  <span class="comment">// first hand, top result</span>
+
+<span class="kw">if</span> (gesture && gesture.score > <span class="val">0.75</span>) {
+    <span class="fn">console</span>.<span class="fn">log</span>(gesture.categoryName); <span class="comment">// e.g. "Closed_Fist"</span>
+}</code></pre>
+
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="blendshapes">
+    <h2 class="section-title">FACE BLENDSHAPES — ALL 52 COEFFICIENTS</h2>
+
+    <p>The <code>FaceLandmarker</code> model with <code>outputFaceBlendshapes: true</code> returns 52 continuous values per detected face, each ranging from <strong>0.0</strong> (not expressed) to <strong>1.0</strong> (fully expressed). These map directly to the ARKit blendshape specification and are compatible with most 3D facial animation pipelines.</p>
+
+    <div class="note">
+        <strong>Access pattern:</strong> <code>result.faceBlendshapes[0].categories[i].score</code> — or map by <code>categoryName</code> for clarity.
+    </div>
+
+    <!-- EYES -->
+    <div class="blend-group">
+    <div class="blend-group-title">EYES</div>
+    <table>
+        <thead><tr><th>Blendshape name</th><th>Range</th><th>What it measures</th><th>Tags</th></tr></thead>
+        <tbody>
+            <tr><td><code>eyeBlinkLeft</code></td><td class="range">0 – 1</td><td class="desc">Left eyelid closing. 0 = fully open, 1 = fully closed.</td><td><span class="tag green">CONTINUOUS</span></td></tr>
+            <tr><td><code>eyeBlinkRight</code></td><td class="range">0 – 1</td><td class="desc">Right eyelid closing.</td><td><span class="tag green">CONTINUOUS</span></td></tr>
+            <tr><td><code>eyeLookDownLeft</code></td><td class="range">0 – 1</td><td class="desc">Left eye gaze moving downward.</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeLookDownRight</code></td><td class="range">0 – 1</td><td class="desc">Right eye gaze moving downward.</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeLookInLeft</code></td><td class="range">0 – 1</td><td class="desc">Left eye gaze moving inward (toward nose).</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeLookInRight</code></td><td class="range">0 – 1</td><td class="desc">Right eye gaze moving inward (toward nose).</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeLookOutLeft</code></td><td class="range">0 – 1</td><td class="desc">Left eye gaze moving outward (away from nose).</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeLookOutRight</code></td><td class="range">0 – 1</td><td class="desc">Right eye gaze moving outward.</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeLookUpLeft</code></td><td class="range">0 – 1</td><td class="desc">Left eye gaze moving upward.</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeLookUpRight</code></td><td class="range">0 – 1</td><td class="desc">Right eye gaze moving upward.</td><td><span class="tag">GAZE</span></td></tr>
+            <tr><td><code>eyeSquintLeft</code></td><td class="range">0 – 1</td><td class="desc">Lower eyelid raised / squinting. Distinct from blinking.</td><td><span class="tag green">CONTINUOUS</span></td></tr>
+            <tr><td><code>eyeSquintRight</code></td><td class="range">0 – 1</td><td class="desc">Right lower eyelid raised.</td><td><span class="tag green">CONTINUOUS</span></td></tr>
+            <tr><td><code>eyeWideLeft</code></td><td class="range">0 – 1</td><td class="desc">Left eye opened wider than neutral.</td><td><span class="tag green">CONTINUOUS</span></td></tr>
+            <tr><td><code>eyeWideRight</code></td><td class="range">0 – 1</td><td class="desc">Right eye opened wider than neutral.</td><td><span class="tag green">CONTINUOUS</span></td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <!-- BROWS -->
+    <div class="blend-group">
+    <div class="blend-group-title">EYEBROWS</div>
+    <table>
+        <thead><tr><th>Blendshape name</th><th>Range</th><th>What it measures</th><th>Tags</th></tr></thead>
+        <tbody>
+            <tr><td><code>browDownLeft</code></td><td class="range">0 – 1</td><td class="desc">Left brow pulled downward (frown / concentration).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>browDownRight</code></td><td class="range">0 – 1</td><td class="desc">Right brow pulled downward.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>browInnerUp</code></td><td class="range">0 – 1</td><td class="desc">Inner corners of both brows raised (worry/surprise). Single value — not split L/R.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>browOuterUpLeft</code></td><td class="range">0 – 1</td><td class="desc">Outer corner of left brow raised (quizzical look).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>browOuterUpRight</code></td><td class="range">0 – 1</td><td class="desc">Outer corner of right brow raised.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <!-- NOSE -->
+    <div class="blend-group">
+    <div class="blend-group-title">NOSE</div>
+    <table>
+        <thead><tr><th>Blendshape name</th><th>Range</th><th>What it measures</th><th>Tags</th></tr></thead>
+        <tbody>
+            <tr><td><code>noseSneerLeft</code></td><td class="range">0 – 1</td><td class="desc">Left nostril raised / sneering. Also activates on a deep sniff.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>noseSneerRight</code></td><td class="range">0 – 1</td><td class="desc">Right nostril raised.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <!-- CHEEKS -->
+    <div class="blend-group">
+    <div class="blend-group-title">CHEEKS</div>
+    <table>
+        <thead><tr><th>Blendshape name</th><th>Range</th><th>What it measures</th><th>Tags</th></tr></thead>
+        <tbody>
+            <tr><td><code>cheekPuff</code></td><td class="range">0 – 1</td><td class="desc">Cheeks inflated outward (puffed). Single bilateral value.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>cheekSquintLeft</code></td><td class="range">0 – 1</td><td class="desc">Left cheek raised toward eye (intense smile / squint).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>cheekSquintRight</code></td><td class="range">0 – 1</td><td class="desc">Right cheek raised toward eye.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <!-- MOUTH / JAW -->
+    <div class="blend-group">
+    <div class="blend-group-title">MOUTH &amp; JAW</div>
+    <table>
+        <thead><tr><th>Blendshape name</th><th>Range</th><th>What it measures</th><th>Tags</th></tr></thead>
+        <tbody>
+            <tr><td><code>jawForward</code></td><td class="range">0 – 1</td><td class="desc">Jaw pushed forward (underbite position).</td><td><span class="tag">POSE</span></td></tr>
+            <tr><td><code>jawLeft</code></td><td class="range">0 – 1</td><td class="desc">Jaw shifted to the left.</td><td><span class="tag">POSE</span></td></tr>
+            <tr><td><code>jawRight</code></td><td class="range">0 – 1</td><td class="desc">Jaw shifted to the right.</td><td><span class="tag">POSE</span></td></tr>
+            <tr><td><code>jawOpen</code></td><td class="range">0 – 1</td><td class="desc">Jaw dropping open. One of the most reliable and expressive blendshapes.</td><td><span class="tag green">CONTINUOUS</span> <span class="tag pink">EXPRESSIVE</span></td></tr>
+            <tr><td><code>mouthClose</code></td><td class="range">0 – 1</td><td class="desc">Lips pressing together (used with jawOpen to distinguish jaw drop from lip part).</td><td><span class="tag green">CONTINUOUS</span></td></tr>
+            <tr><td><code>mouthFunnel</code></td><td class="range">0 – 1</td><td class="desc">Lips pursed into a rounded O shape.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthPucker</code></td><td class="range">0 – 1</td><td class="desc">Lips pulled together and forward (kiss face). Narrower than funnel.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthLeft</code></td><td class="range">0 – 1</td><td class="desc">Mouth corners pulled to the left.</td><td><span class="tag">POSE</span></td></tr>
+            <tr><td><code>mouthRight</code></td><td class="range">0 – 1</td><td class="desc">Mouth corners pulled to the right.</td><td><span class="tag">POSE</span></td></tr>
+            <tr><td><code>mouthSmileLeft</code></td><td class="range">0 – 1</td><td class="desc">Left mouth corner pulled up and back (smile). Very reliable.</td><td><span class="tag green">CONTINUOUS</span> <span class="tag pink">EXPRESSIVE</span></td></tr>
+            <tr><td><code>mouthSmileRight</code></td><td class="range">0 – 1</td><td class="desc">Right mouth corner pulled up. Combine L+R for symmetric smile detection.</td><td><span class="tag green">CONTINUOUS</span> <span class="tag pink">EXPRESSIVE</span></td></tr>
+            <tr><td><code>mouthFrownLeft</code></td><td class="range">0 – 1</td><td class="desc">Left mouth corner pulled down (frown/sad expression).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthFrownRight</code></td><td class="range">0 – 1</td><td class="desc">Right mouth corner pulled down.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthDimpleLeft</code></td><td class="range">0 – 1</td><td class="desc">Left corner pulled back laterally (dimple/wide grin).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthDimpleRight</code></td><td class="range">0 – 1</td><td class="desc">Right corner pulled back.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthStretchLeft</code></td><td class="range">0 – 1</td><td class="desc">Left corner stretched wide (extreme grin / grimace).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthStretchRight</code></td><td class="range">0 – 1</td><td class="desc">Right corner stretched wide.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthRollLower</code></td><td class="range">0 – 1</td><td class="desc">Lower lip rolled inward over lower teeth.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthRollUpper</code></td><td class="range">0 – 1</td><td class="desc">Upper lip rolled inward over upper teeth.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthShrugLower</code></td><td class="range">0 – 1</td><td class="desc">Lower lip pushed upward / forward.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthShrugUpper</code></td><td class="range">0 – 1</td><td class="desc">Upper lip pushed upward (snarl-like).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthPressLeft</code></td><td class="range">0 – 1</td><td class="desc">Left lower lip pressed upward against upper lip.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthPressRight</code></td><td class="range">0 – 1</td><td class="desc">Right lower lip pressed upward.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthLowerDownLeft</code></td><td class="range">0 – 1</td><td class="desc">Left portion of lower lip pulled down.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthLowerDownRight</code></td><td class="range">0 – 1</td><td class="desc">Right portion of lower lip pulled down.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthUpperUpLeft</code></td><td class="range">0 – 1</td><td class="desc">Left portion of upper lip pulled up (sneer / Elvis).</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+            <tr><td><code>mouthUpperUpRight</code></td><td class="range">0 – 1</td><td class="desc">Right portion of upper lip pulled up.</td><td><span class="tag pink">EXPRESSION</span></td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <!-- TONGUE -->
+    <div class="blend-group">
+    <div class="blend-group-title">TONGUE</div>
+    <table>
+        <thead><tr><th>Blendshape name</th><th>Range</th><th>What it measures</th><th>Notes</th></tr></thead>
+        <tbody>
+            <tr><td><code>tongueOut</code></td><td class="range">0 – 1</td><td class="desc">Tongue extended outward beyond lips.</td><td class="desc">Only reliable with good front-facing lighting. Low confidence at angles.</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <div class="note">
+        <strong>Most expressive / most reliable blendshapes for performance use:</strong>
+        <code>jawOpen</code>, <code>mouthSmileLeft</code> + <code>mouthSmileRight</code>,
+        <code>eyeBlinkLeft</code> + <code>eyeBlinkRight</code>, <code>browInnerUp</code>,
+        <code>eyeWideLeft</code> + <code>eyeWideRight</code>, <code>cheekPuff</code>
+    </div>
+
+    <pre><code><span class="kw">const</span> result = faceLandmarker.<span class="fn">detectForVideo</span>(videoEl, performance.<span class="fn">now</span>());
+<span class="kw">const</span> shapes = result.faceBlendshapes[<span class="val">0</span>]?.categories ?? [];
+
+<span class="comment">// Build a lookup map: name → score</span>
+<span class="kw">const</span> bs = <span class="fn">Object</span>.<span class="fn">fromEntries</span>(shapes.<span class="fn">map</span>(s => [s.categoryName, s.score]));
+
+<span class="comment">// Use specific values</span>
+<span class="kw">const</span> mouthOpen  = bs.<span class="val">jawOpen</span>       ?? <span class="val">0</span>;
+<span class="kw">const</span> smileLevel = (bs.<span class="val">mouthSmileLeft</span> + bs.<span class="val">mouthSmileRight</span>) / <span class="val">2</span>;
+<span class="kw">const</span> browRaise  = bs.<span class="val">browInnerUp</span>   ?? <span class="val">0</span>;</code></pre>
+
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="landmarks">
+    <h2 class="section-title">FACE LANDMARK REGIONS</h2>
+    <p>The face mesh returns <strong>478 landmarks</strong> in normalised coordinates (0–1). Key region indices for creative use:</p>
+    <div class="grid2">
+        <div class="card"><h4>LIPS</h4><p>Upper lip: 61, 185, 40, 39, 37, 0, 267, 269, 270, 409<br>Lower lip: 146, 91, 181, 84, 17, 314, 405, 321, 375<br>Mouth corners: <strong>61</strong> (left), <strong>291</strong> (right)</p></div>
+        <div class="card"><h4>EYES</h4><p>Left eye outline: 33–133<br>Right eye outline: 362–263<br>Left iris centre: <strong>468</strong><br>Right iris centre: <strong>473</strong><br>(Iris landmarks 468–477 require <code>outputFacialTransformationMatrixes</code>)</p></div>
+        <div class="card"><h4>EYEBROWS</h4><p>Left brow: 70, 63, 105, 66, 107<br>Right brow: 336, 296, 334, 293, 300</p></div>
+        <div class="card"><h4>NOSE</h4><p>Nose tip: <strong>4</strong><br>Nose bridge: 6, 168<br>Nostril left: 49 · right: 279<br>Columella base: 2</p></div>
+        <div class="card"><h4>JAW / OUTLINE</h4><p>Chin: <strong>152</strong><br>Jaw line (left→right): 10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152</p></div>
+        <div class="card"><h4>FOREHEAD</h4><p>Forehead centre: <strong>10</strong><br>Upper face centre: 151<br>(No dedicated forehead landmarks — derive from brow + skull points)</p></div>
+    </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="stylizer">
+    <h2 class="section-title">FACE STYLIZER — ARTWORK BRIEF</h2>
+
+    <p>The <code>FaceStylizer</code> model takes a source image and applies an artistic style to the detected face region in real time. The style image is <strong>baked into the model at training time</strong> — you don't pass a live style image at runtime. This means a graphic artist creates the artwork once, a developer uses it to build a custom <code>.tflite</code> model, and that model is then loaded in place of the default.</p>
+
+    <div class="warn">
+        <strong>Key constraint:</strong> You are not applying a texture or overlay — you are training a neural style transfer model from your artwork. The model learns the overall visual language (colour palette, stroke style, texture) of the reference image and applies it to new face geometry.
+    </div>
+
+    <h3 class="subsection-title">How the pipeline works</h3>
+    <div class="grid3">
+        <div class="card"><h4>1 — ARTWORK</h4><p>Artist creates the reference style image. This defines the aesthetic the model will learn.</p></div>
+        <div class="card"><h4>2 — MODEL TRAINING</h4><p>Google's Model Maker (Python) trains a new <code>.tflite</code> model using the artwork as the style target. Takes ~hours on GPU.</p></div>
+        <div class="card"><h4>3 — BROWSER DEPLOY</h4><p>The <code>.tflite</code> file is loaded via <code>baseOptions.modelAssetPath</code> exactly like the hand model.</p></div>
+    </div>
+
+    <h3 class="subsection-title">What makes a good style reference image</h3>
+
+    <table>
+        <thead><tr><th>Consideration</th><th>Recommendation</th><th>Why</th></tr></thead>
+        <tbody>
+            <tr><td>Resolution</td><td class="desc">256×256 px minimum, 512×512 px ideal</td><td class="desc">The model downscales internally. Higher res captures more detail but training takes longer.</td></tr>
+            <tr><td>Content vs style</td><td class="desc">Abstract / textural imagery works better than figurative art</td><td class="desc">A portrait of a face trains the model to apply face-specific features, not the style. Use texture, colour field, brushwork.</td></tr>
+            <tr><td>Colour palette</td><td class="desc">High contrast, distinct hues</td><td class="desc">Subtle colour shifts get lost in quantisation. Bold neons, deep blacks, and high saturation transfer well.</td></tr>
+            <tr><td>Edge character</td><td class="desc">Defined stroke edges and clear texture directionality</td><td class="desc">The model picks up stroke direction and edge sharpness. Soft watercolour blends produce muddy results on faces.</td></tr>
+            <tr><td>Luminance variation</td><td class="desc">Include a full tonal range (darks, mids, lights)</td><td class="desc">If your image is all dark or all light, face shadows and highlights get crushed.</td></tr>
+            <tr><td>Aspect ratio</td><td class="desc">Square (1:1)</td><td class="desc">The model operates on square crops of the face region.</td></tr>
+            <tr><td>File format</td><td class="desc">PNG or high-quality JPG</td><td class="desc">Compression artefacts (especially JPEG blocks) can be learned as texture unintentionally.</td></tr>
+            <tr><td>Background</td><td class="desc">Solid or minimal background</td><td class="desc">Background texture will leak into the model. Use a flat black or white.</td></tr>
+        </tbody>
+    </table>
+
+    <h3 class="subsection-title">Styles that transfer well to faces</h3>
+    <div class="grid3">
+        <div class="card">
+            <h4>CIRCUIT / TECH</h4>
+            <p>Printed circuit board traces, glowing wire paths, geometric node patterns. High contrast. Works well for the cyberpunk aesthetic of this project.</p>
+        </div>
+        <div class="card">
+            <h4>INK / WOODBLOCK</h4>
+            <p>Strong black outlines, flat colour fills, defined hatching direction. Japanese woodblock prints and linocut style both train reliably.</p>
+        </div>
+        <div class="card">
+            <h4>GLITCH / SCAN</h4>
+            <p>Horizontal scan-line patterns, chromatic shift textures, CRT phosphor patterns. The directional noise trains well and maps naturally to face planes.</p>
+        </div>
+        <div class="card">
+            <h4>OIL / IMPASTO</h4>
+            <p>Heavy directional brushwork with visible stroke direction. Works well if strokes are large relative to image size.</p>
+        </div>
+        <div class="card">
+            <h4>MOSAIC / PIXEL</h4>
+            <p>Large pixel grid, stained glass, or chunky geometric tiles. The model learns the grid structure well.</p>
+        </div>
+        <div class="card">
+            <h4>NEON / GLOW</h4>
+            <p>Glowing outlines on black. Works if the glow is defined by texture/gradient rather than just a CSS blur. Paint it, don't filter it.</p>
+        </div>
+    </div>
+
+    <h3 class="subsection-title">Styles to avoid or test carefully</h3>
+    <table>
+        <thead><tr><th>Style type</th><th>Problem</th></tr></thead>
+        <tbody>
+            <tr><td>Photorealism</td><td class="desc">The model learns to reproduce the photograph rather than a style — output looks like a blended face.</td></tr>
+            <tr><td>Watercolour / soft gradients</td><td class="desc">Blends merge into muddy skin tones. Low-frequency colour fields need strong underlying texture to anchor the transfer.</td></tr>
+            <tr><td>Very dark images</td><td class="desc">Face highlights get crushed. The model maps its tones to the face — if your reference has no lights, neither will the output.</td></tr>
+            <tr><td>Text / typography</td><td class="desc">Characters appear distorted across curved face geometry. Avoid unless intentional as a texture element.</td></tr>
+            <tr><td>Single flat colour</td><td class="desc">No style information for the model to learn. Adds a colour tint but no visual character.</td></tr>
+        </tbody>
+    </table>
+
+    <h3 class="subsection-title">For a graphic artist — the brief in plain language</h3>
+    <div class="note">
+        <strong>What to create:</strong> A square image (512×512 px, PNG) that communicates a visual style through texture, colour, and mark-making rather than through subject matter. Think of it like a fabric swatch or a wallpaper tile — it should tile visually in the mind, even if it doesn't literally tile. The AI will learn to paint faces in the visual language of your image.<br><br>
+        <strong>What to avoid:</strong> Faces, portraits, or recognisable objects. The AI needs to learn how the surface looks, not what it depicts.<br><br>
+        <strong>Deliver:</strong> The style reference image itself (PNG, 512×512) plus ideally 3–5 variations at different contrast levels so the developer can test which trains most effectively.
+    </div>
+
+    <h3 class="subsection-title">Training with Google Model Maker (developer reference)</h3>
+    <pre><code><span class="comment"># Python — requires mediapipe-model-maker</span>
+<span class="kw">from</span> mediapipe_model_maker <span class="kw">import</span> face_stylizer
+
+<span class="comment"># Point at your style image</span>
+spec = face_stylizer.StylizerSpec(
+    style_image=<span class="str">'path/to/your_style_reference.png'</span>
+)
+
+<span class="comment"># Train — takes 30–120 minutes depending on GPU</span>
+model = face_stylizer.<span class="fn">FaceStylizer</span>.<span class="fn">create</span>(spec)
+model.<span class="fn">export_model</span>(<span class="str">'my_style.tflite'</span>)
+
+<span class="comment"># Then in the browser:</span>
+<span class="comment"># baseOptions: { modelAssetPath: 'my_style.tflite' }</span></code></pre>
+
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="integration">
+    <h2 class="section-title">INTEGRATION PATTERNS</h2>
+
+    <h3 class="subsection-title">Combining multiple models</h3>
+    <p>Each model runs its own inference call. For the theremin or webcam, you can chain them in the same <code>requestAnimationFrame</code> loop — hand landmarks first (cheap), face landmarks second (slightly heavier). Keep the video element shared.</p>
+    <pre><code><span class="comment">// Run both in the same rAF loop</span>
+<span class="kw">function</span> <span class="fn">renderLoop</span>(ts) {
+    requestAnimationFrame(renderLoop);
+
+    <span class="comment">// Hand tracking — already in use</span>
+    handResults = handLandmarker.<span class="fn">detectForVideo</span>(videoEl, ts);
+
+    <span class="comment">// Face tracking — add this</span>
+    faceResults = faceLandmarker.<span class="fn">detectForVideo</span>(videoEl, ts);
+    <span class="kw">const</span> bs = faceResults.faceBlendshapes[<span class="val">0</span>]?.categories;
+
+    <span class="comment">// Map to audio / visuals</span>
+    <span class="kw">if</span> (bs) {
+        <span class="kw">const</span> jawOpen = bs.<span class="fn">find</span>(b => b.categoryName === <span class="str">'jawOpen'</span>)?.score ?? <span class="val">0</span>;
+        <span class="comment">// e.g. filter.frequency → map jawOpen to cutoff</span>
+    }
+}</code></pre>
+
+    <h3 class="subsection-title">Smoothing — exponential moving average</h3>
+    <p>Raw blendshape values flicker frame-to-frame. Smooth before mapping to audio parameters:</p>
+    <pre><code><span class="kw">let</span> smoothJaw = <span class="val">0</span>;
+
+<span class="comment">// In render loop:</span>
+smoothJaw = smoothJaw * <span class="val">0.8</span> + rawJawOpen * <span class="val">0.2</span>;
+<span class="comment">// 0.8/0.2 = slow smooth · 0.5/0.5 = fast response</span>
+filter.frequency.<span class="fn">setTargetAtTime</span>(
+    <span class="fn">mapToFreq</span>(smoothJaw),
+    audioCtx.currentTime,
+    <span class="val">0.05</span>  <span class="comment">// additional smoothing from Web Audio</span>
+);</code></pre>
+
+    <h3 class="subsection-title">Suggested blendshape → synth mappings</h3>
+    <table>
+        <thead><tr><th>Blendshape</th><th>Synth parameter</th><th>Rationale</th></tr></thead>
+        <tbody>
+            <tr><td><code>jawOpen</code></td><td class="desc">Filter cutoff</td><td class="desc">Physically mirrors "opening" the filter — intuitive and expressive</td></tr>
+            <tr><td><code>mouthSmileLeft + Right avg</code></td><td class="desc">Reverb mix</td><td class="desc">Smile = space opening up — pleasant physical metaphor</td></tr>
+            <tr><td><code>browInnerUp</code></td><td class="desc">LFO depth</td><td class="desc">Raised brows = intensity / surprise — maps to wobble depth</td></tr>
+            <tr><td><code>eyeSquintLeft + Right avg</code></td><td class="desc">Drive amount</td><td class="desc">Squinting = tension = distortion</td></tr>
+            <tr><td><code>cheekPuff</code></td><td class="desc">Chorus mix</td><td class="desc">Inflated = spread / width</td></tr>
+            <tr><td><code>eyeBlinkLeft</code></td><td class="desc">Trigger / gate</td><td class="desc">Wink = discrete trigger for effects or preset switch</td></tr>
+            <tr><td><code>mouthPucker</code></td><td class="desc">Oscillator detune spread</td><td class="desc">Pursed lips = narrowing / tightening — maps to chorus tightening</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<footer style="border-top:1px solid var(--gdark);padding-top:16px;color:var(--gdark);font-size:10px;letter-spacing:1px;">
+    MEDIAPIPE TASKS VISION @0.10.3 &nbsp;·&nbsp; ALL MODELS RUN LOCALLY — NO DATA LEAVES THE BROWSER &nbsp;·&nbsp; WEBASSEMBLY + WEBGL BACKEND
+</footer>
+
+</div>
+</body>
+</html>

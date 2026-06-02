@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII // FACE VISION</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--green:#00ff41;--gdim:#00b32c;--gdark:#003d0f;--pink:#ff2d78;--cyan:#00ffcc;--bg:#010802;--panel:#060e07;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:#000;font-family:'Share Tech Mono',monospace;color:var(--green);font-size:13px;}
+.app{display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:260px 1fr;height:100vh;}
+.header{grid-column:1/-1;background:var(--bg);border-bottom:1px solid var(--gdark);padding:8px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.header h1{color:var(--pink);font-size:13px;letter-spacing:2px;text-shadow:0 0 8px rgba(255,45,120,.5);}
+.hbtns{display:flex;gap:6px;margin-left:auto;align-items:center;}
+.sidebar{background:var(--panel);border-right:1px solid var(--gdark);overflow-y:auto;}
+.sidebar::-webkit-scrollbar{width:2px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--gdark);}
+.main{background:#000;display:flex;flex-direction:column;overflow:hidden;}
+.statusbar{grid-column:1/-1;background:var(--bg);border-top:1px solid var(--gdark);padding:4px 18px;color:var(--gdim);font-size:11px;display:flex;gap:24px;}
+.section{border-bottom:1px solid var(--gdark);}
+.section-head{padding:7px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;color:var(--green);font-size:11px;letter-spacing:1px;text-shadow:0 0 4px rgba(0,255,65,.3);}
+.section-head .arrow{transition:transform .15s;display:inline-block;}
+.section-head.open .arrow{transform:rotate(90deg);}
+.section-body{padding:10px 12px;display:none;}
+.section-body.open{display:block;}
+.ctrl{margin-bottom:7px;}
+.ctrl label{display:flex;justify-content:space-between;flex-wrap:wrap;color:var(--gdim);font-size:11px;margin-bottom:3px;}
+.ctrl input[type=range]{width:100%;accent-color:var(--green);}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;border-radius:50%;background:var(--green);}
+.radio-group{display:flex;flex-direction:column;gap:3px;}
+.radio-group label,.check-row{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--gdim);font-size:11px;margin-bottom:4px;}
+.radio-group input,.check-row input{accent-color:var(--green);}
+select.ctrl-select{width:100%;background:var(--bg);border:1px solid var(--gdark);color:var(--green);font-family:inherit;font-size:11px;padding:3px;outline:none;cursor:pointer;}
+textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--gdark);color:var(--green);font-family:inherit;font-size:11px;padding:4px;resize:none;height:40px;outline:none;}
+.btn{background:transparent;border:1px solid var(--pink);color:var(--pink);font-family:inherit;font-size:11px;padding:4px 10px;cursor:pointer;text-shadow:0 0 4px rgba(255,45,120,.4);transition:background .1s;text-decoration:none;display:inline-block;white-space:nowrap;}
+.btn:hover{background:rgba(255,45,120,.12);}
+.btn.green{border-color:var(--green);color:var(--green);text-shadow:0 0 4px rgba(0,255,65,.4);}
+.btn.green:hover{background:rgba(0,255,65,.08);}
+.btn.green.active{background:rgba(0,255,65,.18);}
+.btn:disabled{opacity:.3;pointer-events:none;}
+.preview-wrap{flex:1;display:flex;align-items:center;justify-content:center;background:#000;position:relative;overflow:hidden;}
+#asciiCanvas{display:block;image-rendering:pixelated;position:relative;z-index:1;}
+#asciiBloom{display:none;position:absolute;pointer-events:none;mix-blend-mode:screen;z-index:2;}
+.no-camera{position:absolute;color:var(--gdim);text-align:center;z-index:10;}
+.no-camera .icon{font-size:48px;margin-bottom:12px;opacity:.2;}
+.loading-bar{width:200px;height:2px;background:var(--gdark);margin:12px auto 0;overflow:hidden;}
+.loading-fill{height:100%;background:var(--green);width:0%;transition:width .3s;box-shadow:0 0 6px var(--green);}
+@keyframes crtDrift{0%{transform:translate(0,0)}25%{transform:translate(.4px,.1px)}50%{transform:translate(-.3px,0)}75%{transform:translate(.2px,-.1px)}100%{transform:translate(0,0)}}
+#asciiCanvas{animation:crtDrift 18s ease-in-out infinite;}
+@keyframes scanBand{from{transform:translateY(-100%)}to{transform:translateY(100%)}}
+.preview-wrap::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 42%,rgba(0,255,65,.008) 46%,rgba(0,255,65,.018) 50%,rgba(0,255,65,.008) 54%,transparent 58%);pointer-events:none;z-index:6;animation:scanBand 14s linear infinite;}
+.preview-wrap::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.03);pointer-events:none;z-index:7;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header class="header">
+    <h1>ASCII // FACE VISION</h1>
+    <div class="hbtns">
+        <span style="color:var(--gdim);font-size:11px;min-width:48px;" id="hFps">— fps</span>
+        <button class="btn green" id="btnCamera">[ START ]</button>
+        <button class="btn" id="btnLoad" onclick="window._loadSettings && window._loadSettings()">[ LOAD SETTINGS ]</button>
+        <button class="btn" id="btnFullscreen">[ ⛶ ]</button>
+        <a href="ascii-webcam.html" class="btn">[ ← WEBCAM ]</a>
+    </div>
+</header>
+
+<div class="sidebar">
+
+    <!-- FACE OVERLAYS -->
+    <div class="section">
+        <div class="section-head open" data-target="s-face"><span>FACE OVERLAYS</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-face">
+            <div class="check-row">
+                <input type="checkbox" id="meshOn" checked>
+                <label for="meshOn">Face mesh</label>
+            </div>
+            <div class="ctrl" style="margin-top:4px;">
+                <label>Mesh opacity <span id="meshOpacityVal">1.00</span></label>
+                <input type="range" id="meshOpacity" min="0.05" max="1" step="0.05" value="1">
+            </div>
+            <div style="font-size:10px;color:var(--gdim);margin:6px 0 4px;">Mesh colour</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="meshColor" value="cyan" checked> Cyan</label>
+                <label><input type="radio" name="meshColor" value="pink"> Pink</label>
+                <label><input type="radio" name="meshColor" value="green"> Green</label>
+                <label><input type="radio" name="meshColor" value="white"> White</label>
+            </div>
+            <div class="check-row" style="margin-top:6px;">
+                <input type="checkbox" id="eyeGlowOn" checked>
+                <label for="eyeGlowOn">Eye glow</label>
+            </div>
+            <div style="font-size:10px;color:var(--gdim);margin:4px 0;">Eye colour</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="eyeColor" value="demon" checked> Red / orange</label>
+                <label><input type="radio" name="eyeColor" value="cyber"> Cyan</label>
+                <label><input type="radio" name="eyeColor" value="toxic"> Toxic green</label>
+                <label><input type="radio" name="eyeColor" value="void"> White</label>
+            </div>
+            <div class="ctrl">
+                <label>Eye glow size <span id="eyeGlowVal">10</span>px</label>
+                <input type="range" id="eyeGlow" min="10" max="80" value="10">
+            </div>
+            <div class="ctrl">
+                <label>Eye glow intensity <span id="eyeIntensityVal">0.65</span></label>
+                <input type="range" id="eyeIntensity" min="0.1" max="1" step="0.05" value="0.65">
+            </div>
+        </div>
+    </div>
+
+    <!-- CAMERA -->
+    <div class="section">
+        <div class="section-head open" data-target="s-cam"><span>CAMERA</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-cam">
+            <div class="check-row">
+                <input type="checkbox" id="mirror" checked>
+                <label for="mirror">Mirror</label>
+            </div>
+            <div class="ctrl" style="margin-top:4px;">
+                <label style="margin-bottom:4px;">Source</label>
+                <select id="cameraSource" class="ctrl-select"><option value="">— start first —</option></select>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESOLUTION -->
+    <div class="section">
+        <div class="section-head open" data-target="s-res"><span>RESOLUTION</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-res">
+            <div class="ctrl">
+                <label>Columns <span id="colsVal">200</span></label>
+                <input type="range" id="cols" min="20" max="400" value="200">
+            </div>
+            <div style="font-size:10px;color:var(--gdim);">Rows (auto): <span id="rowsVal">—</span></div>
+        </div>
+    </div>
+
+    <!-- SIZE & SPACING -->
+    <div class="section">
+        <div class="section-head" data-target="s-size"><span>SIZE &amp; SPACING</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-size">
+            <div class="ctrl">
+                <label>Character size <span id="charSizeVal">2</span>px</label>
+                <input type="range" id="charSize" min="1" max="48" value="2">
+            </div>
+            <div class="ctrl">
+                <label>H spacing <span id="charSpacingHVal">0</span>px
+                    <span style="font-size:9px;color:var(--gdark);">← expand | compress →</span>
+                </label>
+                <input type="range" id="charSpacingH" min="-16" max="16" value="0">
+            </div>
+            <div class="ctrl">
+                <label>V spacing <span id="charSpacingVVal">1</span>px
+                    <span style="font-size:9px;color:var(--gdark);">← expand | compress →</span>
+                </label>
+                <input type="range" id="charSpacingV" min="-16" max="16" value="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- TONE -->
+    <div class="section">
+        <div class="section-head" data-target="s-tone"><span>TONE</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-tone">
+            <div class="ctrl">
+                <label>Brightness <span id="brightnessVal">0.00</span></label>
+                <input type="range" id="brightness" min="-1" max="1" step="0.05" value="0">
+            </div>
+            <div class="ctrl">
+                <label>Contrast <span id="contrastVal">1.00</span></label>
+                <input type="range" id="contrast" min="0.1" max="4" step="0.05" value="1">
+            </div>
+            <div class="ctrl">
+                <label>Gamma <span id="gammaVal">1.00</span></label>
+                <input type="range" id="gamma" min="0.3" max="3" step="0.05" value="1">
+            </div>
+            <div class="ctrl">
+                <label>Black point <span id="blackPtVal">0</span></label>
+                <input type="range" id="blackPt" min="0" max="200" value="0">
+            </div>
+            <div class="ctrl">
+                <label>White point <span id="whitePtVal">255</span></label>
+                <input type="range" id="whitePt" min="55" max="255" value="255">
+            </div>
+            <div class="ctrl">
+                <label>Edge boost <span id="edgeBoostVal">0</span>%</label>
+                <input type="range" id="edgeBoost" min="0" max="100" value="0">
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="invert">
+                <label for="invert">Invert</label>
+            </div>
+            <div style="font-size:10px;color:var(--gdim);margin:8px 0 4px;letter-spacing:1px;">TONAL RANGE
+                <span style="color:var(--gdark);font-size:9px;"> ← darken | brighten →</span>
+            </div>
+            <div class="ctrl">
+                <label>Highlights <span id="highlightsVal">0</span></label>
+                <input type="range" id="highlights" min="-50" max="50" value="0">
+            </div>
+            <div class="ctrl">
+                <label>Midtones <span id="midtonesVal">0</span></label>
+                <input type="range" id="midtones" min="-50" max="50" value="0">
+            </div>
+            <div class="ctrl">
+                <label>Shadows <span id="shadowsVal">0</span></label>
+                <input type="range" id="shadows" min="-50" max="50" value="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- COLOUR MODE -->
+    <div class="section">
+        <div class="section-head" data-target="s-color"><span>COLOUR MODE</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-color">
+            <div class="radio-group">
+                <label><input type="radio" name="colorMode" value="mono" checked> Mono green</label>
+                <label><input type="radio" name="colorMode" value="twotone"> Two-tone green</label>
+                <label><input type="radio" name="colorMode" value="palette"> Site palette (pink/cyan/green)</label>
+                <label><input type="radio" name="colorMode" value="rgb"> Full RGB</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARACTER SET -->
+    <div class="section">
+        <div class="section-head" data-target="s-chars"><span>CHARACTER SET</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-chars">
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="charSet" value="standard" checked> Standard density</label>
+                <label><input type="radio" name="charSet" value="block"> Block (░▒▓█)</label>
+                <label><input type="radio" name="charSet" value="halfblock"> Half-block (▀▄▌▐)</label>
+                <label><input type="radio" name="charSet" value="binary"> Binary (0 1)</label>
+                <label><input type="radio" name="charSet" value="custom"> Custom</label>
+            </div>
+            <div id="customCharsWrap" style="display:none;">
+                <div style="font-size:10px;color:var(--gdim);margin-bottom:3px;">Characters (dark → bright):</div>
+                <textarea class="custom-chars" id="customChars"> .:-=+*#%@</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- GLOW -->
+    <div class="section">
+        <div class="section-head" data-target="s-glow"><span>GLOW</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-glow">
+            <div class="check-row">
+                <input type="checkbox" id="glowOn" checked>
+                <label for="glowOn">Enable glow</label>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="glowLuma">
+                <label for="glowLuma">Luma-driven intensity</label>
+            </div>
+            <div class="ctrl">
+                <label>Response curve γ <span id="glowGammaVal">1.0</span>
+                    <span style="font-size:9px;color:var(--gdark);">shadows ← | → highlights</span>
+                </label>
+                <input type="range" id="glowGamma" min="0.1" max="4" step="0.1" value="1">
+            </div>
+            <div class="ctrl">
+                <label>Blur radius <span id="glowBlurVal">6</span>px</label>
+                <input type="range" id="glowBlur" min="1" max="30" value="6">
+            </div>
+            <div class="ctrl">
+                <label>Intensity <span id="glowAlphaVal">0.70</span></label>
+                <input type="range" id="glowAlpha" min="0.1" max="1" step="0.05" value="0.7">
+            </div>
+        </div>
+    </div>
+
+    <!-- CA -->
+    <div class="section">
+        <div class="section-head" data-target="s-ca"><span>CHROMATIC ABERRATION</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-ca">
+            <div class="check-row">
+                <input type="checkbox" id="caOn">
+                <label for="caOn">Enable CA</label>
+            </div>
+            <div class="ctrl">
+                <label>Spread <span id="caSpreadVal">2</span>px</label>
+                <input type="range" id="caSpread" min="1" max="12" value="2">
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="caAnimated">
+                <label for="caAnimated">Animated shift</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAYS -->
+    <div class="section">
+        <div class="section-head" data-target="s-overlay"><span>OVERLAYS</span><span class="arrow">▶</span></div>
+        <div class="section-body" id="s-overlay">
+            <div class="check-row">
+                <input type="checkbox" id="scanlines">
+                <label for="scanlines">Scanlines</label>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="vignette">
+                <label for="vignette">Vignette</label>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="main">
+    <div class="preview-wrap" id="previewWrap">
+        <div class="no-camera" id="noCamera">
+            <div class="icon">◉</div>
+            <div id="loadingMsg">Loading face tracking model…</div>
+            <div class="loading-bar"><div class="loading-fill" id="loadingFill"></div></div>
+        </div>
+        <canvas id="asciiCanvas"></canvas>
+        <canvas id="asciiBloom"></canvas>
+    </div>
+</div>
+
+<div class="statusbar">
+    <span id="statusMsg">Loading MediaPipe…</span>
+    <span id="resInfo">—</span>
+</div>
+
+</div>
+<script type="module">
+import { FaceLandmarker, FilesetResolver }
+    from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3';
+
+// ─────────────────────────────────────────────────────────────────
+// STATE  — matches ascii-webcam.html plus face overlay controls
+// ─────────────────────────────────────────────────────────────────
+const state = {
+    cols: 200, rows: 34,
+    charSize: 2, charSpacingH: 0, charSpacingV: 1,
+    colorMode: 'mono',
+    charSet: 'standard', customChars: ' .:-=+*#%@',
+    mirror: true,
+    brightness: 0, contrast: 1, gamma: 1,
+    blackPt: 0, whitePt: 255, edgeBoost: 0, invert: false,
+    highlights: 0, midtones: 0, shadows: 0,
+    glowOn: true, glowLuma: false, glowGamma: 1.0, glowBlur: 6, glowAlpha: 0.7,
+    caOn: false, caSpread: 2, caAnimated: false, caPhase: 0,
+    scanlines: false, vignette: false,
+    // Face overlay
+    meshOn: true, meshOpacity: 1.0, meshColor: 'cyan',
+    eyeGlowOn: true, eyeColor: 'demon', eyeGlow: 10, eyeIntensity: 0.65,
+};
+
+// ─────────────────────────────────────────────────────────────────
+// TONE LUT  — full pipeline identical to ascii-webcam
+// ─────────────────────────────────────────────────────────────────
+let _toneLUT  = new Float32Array(256), _toneDirty  = true;
+let _glowLUT  = new Float32Array(256), _glowDirty  = true;
+let _lastGlowGamma = -1;
+function markToneDirty() { _toneDirty = true; }
+function _buildGlowLUT() {
+    const g = state.glowGamma;
+    if (g === _lastGlowGamma) return;
+    for (let i = 0; i < 256; i++) _glowLUT[i] = 0.3 + Math.pow(i / 255, g) * 0.7;
+    _lastGlowGamma = g;
+}
+// MediaPipe throttle — ML inference every 3rd frame keeps detection smooth
+// while cutting inference cost by ~66%.
+let _mpFrameSkip = 0;
+function buildToneLUT() {
+    const { brightness, contrast, gamma, blackPt, whitePt, invert,
+            highlights, midtones, shadows } = state;
+    const range = (whitePt - blackPt) || 1;
+    for (let i = 0; i < 256; i++) {
+        let v = (i - blackPt) / range;
+        v = Math.max(0, Math.min(1, v));
+        v = Math.pow(v, 1 / gamma);
+        v = (v - 0.5) * contrast + 0.5 + brightness;
+        const sh = Math.max(0, 1 - v / 0.4);
+        const hi = Math.max(0, (v - 0.6) / 0.4);
+        const mi = Math.max(0, 1 - sh - hi);
+        v += (sh * shadows + mi * midtones + hi * highlights) / 100;
+        if (invert) v = 1 - v;
+        _toneLUT[i] = Math.max(0, Math.min(1, v));
+    }
+    _toneDirty = false;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CHARACTERS & COLOUR
+// ─────────────────────────────────────────────────────────────────
+const CHAR_SETS = {
+    standard:  ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
+    block:     ' ░▒▓█',
+    halfblock: ' ▏▎▍▌▋▊▉█▀▄▌▐',
+    binary:    ' 01',
+};
+function getChars() {
+    if (state.charSet === 'custom') return state.customChars || ' .:-=+*#%@';
+    return CHAR_SETS[state.charSet] || CHAR_SETS.standard;
+}
+function charFromLuma(l, chars) {
+    return chars[Math.max(0, Math.min(chars.length - 1, Math.floor(l * (chars.length - 1))))];
+}
+function colorFromLuma(l, r, g, b) {
+    switch (state.colorMode) {
+        case 'twotone': return l > 0.5 ? '#00ff41' : '#00b32c';
+        case 'palette':
+            if (l < 0.33) return '#00b32c';
+            if (l < 0.66) return '#00ffcc';
+            return '#ff2d78';
+        case 'rgb': return `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+        default: return '#00ff41';
+    }
+}
+function hexToRgb(hex) {
+    if (hex.startsWith('rgb')) { const m = hex.match(/\d+/g); return m ? [+m[0],+m[1],+m[2]] : [0,255,65]; }
+    return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EDGE BOOST
+// ─────────────────────────────────────────────────────────────────
+function applyEdgeBoost(luma, cols, rows, strength) {
+    const out = new Float32Array(cols * rows);
+    const kx  = [-1,0,1,-2,0,2,-1,0,1], ky = [-1,-2,-1,0,0,0,1,2,1];
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            let gx = 0, gy = 0;
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+                const nx = Math.max(0, Math.min(cols-1, x+dx));
+                const ny = Math.max(0, Math.min(rows-1, y+dy));
+                const v  = luma[ny*cols+nx], ki = (dy+1)*3+(dx+1);
+                gx += v*kx[ki]; gy += v*ky[ki];
+            }
+            out[y*cols+x] = Math.min(1, luma[y*cols+x] + Math.min(1, Math.sqrt(gx*gx+gy*gy)/4)*strength);
+        }
+    }
+    return out;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MEDIAPIPE
+// ─────────────────────────────────────────────────────────────────
+let faceLandmarker = null, mpReady = false, faceResults = null;
+
+async function initMediaPipe() {
+    try {
+        setLoadingProgress(20);
+        const vision = await FilesetResolver.forVisionTasks(
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
+        );
+        setLoadingProgress(60);
+        faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+                delegate: 'GPU',
+            },
+            runningMode: 'VIDEO',
+            numFaces: 1,
+            outputFaceBlendshapes: false,
+        });
+        setLoadingProgress(100);
+        mpReady = true;
+        document.getElementById('loadingMsg').textContent = 'Ready — click [ START ]';
+        document.getElementById('btnCamera').disabled = false;
+        setStatus('Face tracking ready');
+    } catch (e) {
+        document.getElementById('loadingMsg').textContent = 'Load failed: ' + e.message;
+    }
+}
+function setLoadingProgress(p) { document.getElementById('loadingFill').style.width = p + '%'; }
+
+// ─────────────────────────────────────────────────────────────────
+// CAMERA
+// ─────────────────────────────────────────────────────────────────
+let videoEl = null, camStream = null, sampleCanvas = null, sampleCtx = null;
+let animFrame = null, running = false, streamAR = 16/9;
+
+async function startCamera(deviceId) {
+    try {
+        if (camStream) _teardown();
+        const constraints = {
+            video: { width:{ideal:1280}, height:{ideal:720},
+                     ...(deviceId ? {deviceId:{exact:deviceId}} : {facingMode:'user'}) },
+            audio: false
+        };
+        camStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (!videoEl) { videoEl = document.createElement('video'); videoEl.autoplay=true; videoEl.playsInline=true; videoEl.muted=true; }
+        videoEl.srcObject = camStream;
+        await videoEl.play();
+        const s = camStream.getVideoTracks()[0].getSettings();
+        streamAR = (s.width||1280) / (s.height||720);
+        _updateRows(); _rebuildSampleCanvas();
+        running = true;
+        document.getElementById('asciiCanvas').style.display = 'block';
+        document.getElementById('noCamera').style.display    = 'none';
+        document.getElementById('btnCamera').textContent     = '[ STOP ]';
+        document.getElementById('btnCamera').classList.add('active');
+        setStatus('Running');
+        resizeCanvas();
+        _fpsLast = performance.now(); _fpsFrames = 0;
+        animFrame = requestAnimationFrame(renderLoop);
+        camStream.getVideoTracks()[0].addEventListener('ended', () => { stopCamera(); setStatus('Camera disconnected'); });
+        await _populateCamList(s.deviceId);
+    } catch (e) { setStatus('Camera error: ' + e.message); }
+}
+
+function stopCamera() {
+    running = false;
+    if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+    _teardown();
+    document.getElementById('asciiCanvas').style.display = 'none';
+    document.getElementById('noCamera').style.display    = '';
+    document.getElementById('btnCamera').textContent     = '[ START ]';
+    document.getElementById('btnCamera').classList.remove('active');
+    document.getElementById('hFps').textContent          = '— fps';
+    setStatus('Stopped');
+}
+function _teardown() {
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+    if (videoEl)   { videoEl.srcObject = null; }
+}
+async function _populateCamList(activeId) {
+    try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const sel  = document.getElementById('cameraSource'); sel.innerHTML = '';
+        devs.filter(d => d.kind === 'videoinput').forEach((d, i) => {
+            const o = document.createElement('option');
+            o.value = d.deviceId; o.textContent = d.label || `Camera ${i+1}`;
+            if (d.deviceId === activeId) o.selected = true;
+            sel.appendChild(o);
+        });
+    } catch(_) {}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SIZING
+// ─────────────────────────────────────────────────────────────────
+function _charCells() {
+    return {
+        w: Math.max(0.5, state.charSize * 0.6 + state.charSpacingH),
+        h: Math.max(0.5, state.charSize + state.charSpacingV),
+    };
+}
+function _updateRows() {
+    const { w, h } = _charCells();
+    state.rows = Math.max(1, Math.round(state.cols * w / (h * streamAR)));
+    document.getElementById('rowsVal').textContent = state.rows;
+    document.getElementById('resInfo').textContent = `${state.cols} × ${state.rows} chars`;
+}
+function _rebuildSampleCanvas() {
+    sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = state.cols; sampleCanvas.height = state.rows;
+    sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+}
+function _refreshSize() { _updateRows(); _rebuildSampleCanvas(); if (running) resizeCanvas(); }
+
+function resizeCanvas() {
+    if (!running) return;
+    const wrap   = document.getElementById('previewWrap');
+    const canvas = document.getElementById('asciiCanvas');
+    const bloom  = document.getElementById('asciiBloom');
+    const { w: cw, h: ch } = _charCells();
+    const natW = state.cols * cw, natH = state.rows * ch;
+    const maxW = wrap.clientWidth - 8, maxH = wrap.clientHeight - 8;
+    const scale = Math.min(maxW / natW, maxH / natH);
+    canvas.width  = Math.round(natW * scale); canvas.height = Math.round(natH * scale);
+    canvas._previewScale = scale;
+    bloom.width   = canvas.width; bloom.height = canvas.height;
+    bloom.style.left   = canvas.offsetLeft   + 'px';
+    bloom.style.top    = canvas.offsetTop    + 'px';
+    bloom.style.width  = canvas.offsetWidth  + 'px';
+    bloom.style.height = canvas.offsetHeight + 'px';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FPS
+// ─────────────────────────────────────────────────────────────────
+let _fpsFrames = 0, _fpsLast = 0;
+function tickFPS(ts) {
+    _fpsFrames++;
+    if (ts - _fpsLast >= 600) {
+        document.getElementById('hFps').textContent = Math.round(_fpsFrames * 1000 / (ts - _fpsLast)) + ' fps';
+        _fpsFrames = 0; _fpsLast = ts;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER LOOP
+// ─────────────────────────────────────────────────────────────────
+function renderLoop(ts) {
+    if (!running) return;
+    animFrame = requestAnimationFrame(renderLoop);
+    if (!videoEl || videoEl.readyState < 2) return;
+    tickFPS(ts);
+    if (state.caOn && state.caAnimated) state.caPhase += 0.12;
+    // Run face detection every 3rd frame — landmarks interpolate well at 30fps source
+    if (mpReady && faceLandmarker && ++_mpFrameSkip % 3 === 0) {
+        try { faceResults = faceLandmarker.detectForVideo(videoEl, ts); } catch(_) {}
+    }
+    renderASCII();
+    renderFaceOverlays();
+    renderBloom();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ASCII RENDER  — full pipeline matching ascii-webcam
+// ─────────────────────────────────────────────────────────────────
+function renderASCII() {
+    const canvas = document.getElementById('asciiCanvas');
+    const ctx    = canvas.getContext('2d');
+    const cols = state.cols, rows = state.rows, cells = cols * rows;
+
+    sampleCtx.save();
+    if (state.mirror) { sampleCtx.translate(cols, 0); sampleCtx.scale(-1, 1); }
+    sampleCtx.drawImage(videoEl, 0, 0, cols, rows);
+    sampleCtx.restore();
+    const px = sampleCtx.getImageData(0, 0, cols, rows).data;
+
+    // Extract raw luma for edge boost
+    const lumaRaw = new Float32Array(cells);
+    const rMap = new Float32Array(cells), gMap = new Float32Array(cells), bMap = new Float32Array(cells);
+    for (let i = 0; i < cells; i++) {
+        const r = px[i*4]/255, g = px[i*4+1]/255, b = px[i*4+2]/255;
+        lumaRaw[i] = 0.299*r + 0.587*g + 0.114*b;
+        rMap[i] = r; gMap[i] = g; bMap[i] = b;
+    }
+    const boosted = state.edgeBoost > 0 ? applyEdgeBoost(lumaRaw, cols, rows, state.edgeBoost/100) : lumaRaw;
+    if (_toneDirty) buildToneLUT();
+    _buildGlowLUT(); // rebuild only when glowGamma changes (O(256), cached)
+    const finalLuma = new Float32Array(cells);
+    for (let i = 0; i < cells; i++) finalLuma[i] = _toneLUT[Math.min(255, Math.round(boosted[i]*255))];
+
+    const scale    = canvas._previewScale || 1;
+    const cw       = (state.charSize * 0.6 + state.charSpacingH) * scale;
+    const ch       = (state.charSize       + state.charSpacingV)  * scale;
+    const fontSize = Math.max(1, state.charSize * scale);
+    const chars    = getChars();
+    const caOffset = state.caOn ? (state.caAnimated ? Math.sin(state.caPhase) * state.caSpread : state.caSpread) : 0;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = `${fontSize}px 'Share Tech Mono', monospace`; ctx.textBaseline = 'top';
+
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            const i = row * cols + col;
+            const luma = finalLuma[i];
+            const char = charFromLuma(luma, chars);
+            if (!char.trim()) continue;
+            const x = col * cw, y = row * ch;
+            const color = colorFromLuma(luma, rMap[i], gMap[i], bMap[i]);
+            if (state.caOn && caOffset > 0) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                const [lr, lg, lb] = hexToRgb(color);
+                ctx.fillStyle = `rgba(${lr},0,0,0.9)`;   ctx.fillText(char, x - caOffset, y);
+                ctx.fillStyle = `rgba(0,${lg},0,0.9)`;   ctx.fillText(char, x, y);
+                ctx.fillStyle = `rgba(0,0,${lb},0.9)`;   ctx.fillText(char, x + caOffset, y);
+                ctx.restore();
+            } else {
+                ctx.fillStyle   = color;
+                ctx.globalAlpha = _glowLUT[Math.round(luma * 255)]; // LUT avoids Math.pow per char
+                ctx.fillText(char, x, y);
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+
+    if (state.scanlines) {
+        ctx.save();
+        for (let y = 0; y < canvas.height; y += 2) {
+            ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(0, y, canvas.width, 1);
+        }
+        ctx.restore();
+    }
+    if (state.vignette) {
+        const g = ctx.createRadialGradient(canvas.width/2,canvas.height/2,canvas.height*0.3,canvas.width/2,canvas.height/2,canvas.height*0.75);
+        g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.65)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BLOOM  — full version matching ascii-webcam
+// ─────────────────────────────────────────────────────────────────
+function renderBloom() {
+    const canvas = document.getElementById('asciiCanvas');
+    const bloom  = document.getElementById('asciiBloom');
+    if (!state.glowOn) { bloom.style.display = 'none'; return; }
+    const alpha = state.glowAlpha;
+    const bw = Math.max(1, Math.ceil(canvas.width  * 0.25));
+    const bh = Math.max(1, Math.ceil(canvas.height * 0.25));
+    if (bloom.width !== bw || bloom.height !== bh) { bloom.width = bw; bloom.height = bh; }
+    bloom.getContext('2d').drawImage(canvas, 0, 0, bw, bh);
+    bloom.style.left    = canvas.offsetLeft   + 'px';
+    bloom.style.top     = canvas.offsetTop    + 'px';
+    bloom.style.width   = canvas.offsetWidth  + 'px';
+    bloom.style.height  = canvas.offsetHeight + 'px';
+    const scale    = canvas._previewScale || 1;
+    const blurPx   = Math.max(0.5, state.glowBlur * scale);
+    const contrast = state.glowLuma ? ' contrast(3)' : '';
+    bloom.style.filter  = `blur(${blurPx.toFixed(2)}px) brightness(${(1 + alpha * 2).toFixed(2)})${contrast}`;
+    bloom.style.opacity = alpha;
+    bloom.style.display = 'block';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FACE OVERLAYS  — mesh + eye glow drawn on the ASCII canvas
+// ─────────────────────────────────────────────────────────────────
+const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+
+const EYE_PALETTES = {
+    demon: { iris:'#5a0000', inner:'#cc0000', glow:'#a80000' },
+    cyber: { iris:'#006688', inner:'#00ffcc', glow:'#00aaff' },
+    toxic: { iris:'#004400', inner:'#00ff41', glow:'#00ff41' },
+    void:  { iris:'#999999', inner:'#ffffff', glow:'#dddddd' },
+};
+const MESH_COLORS = { cyan:'#00ffcc', pink:'#ff2d78', green:'#00ff41', white:'#ffffff' };
+
+function renderFaceOverlays() {
+    const lms = faceResults?.faceLandmarks?.[0];
+    if (!lms || lms.length < 468) return;
+
+    const canvas = document.getElementById('asciiCanvas');
+    const ctx    = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    const lx = (lm) => (state.mirror ? 1 - lm.x : lm.x) * W;
+    const ly = (lm) => lm.y * H;
+    const p  = (i)  => ({ x: lx(lms[i]), y: ly(lms[i]) });
+
+    // MESH — batch all segments into one path+stroke instead of one stroke per segment
+    if (state.meshOn) {
+        ctx.save();
+        ctx.globalAlpha = state.meshOpacity;
+        ctx.strokeStyle = MESH_COLORS[state.meshColor] || '#00ffcc';
+        ctx.lineWidth   = 0.5;
+        const STEP     = 3;
+        const threshold = W * 0.1;
+        ctx.beginPath();
+        for (let i = 0; i < lms.length - STEP; i += STEP) {
+            const ax = lx(lms[i]),   ay = ly(lms[i]);
+            const bx = lx(lms[i+1]), by = ly(lms[i+1]);
+            if (Math.hypot(ax - bx, ay - by) < threshold) {
+                ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+            }
+        }
+        ctx.stroke(); // single draw call for entire mesh
+        ctx.restore();
+    }
+
+    // EYE GLOW — radial gradients instead of shadowBlur (shadowBlur is ~10× slower)
+    if (state.eyeGlowOn) {
+        const pal   = EYE_PALETTES[state.eyeColor] || EYE_PALETTES.demon;
+        const scale = canvas._previewScale || 1;
+        const glowR = state.eyeGlow * scale;
+        const alpha = state.eyeIntensity;
+
+        const lEyeOuter = p(33), lEyeInner = p(133);
+        const rEyeOuter = p(362), rEyeInner = p(263);
+        const lIris = lms.length >= 478 ? p(468) : { x:(lEyeOuter.x+lEyeInner.x)*0.5, y:(lEyeOuter.y+lEyeInner.y)*0.5 };
+        const rIris = lms.length >= 478 ? p(473) : { x:(rEyeOuter.x+rEyeInner.x)*0.5, y:(rEyeOuter.y+rEyeInner.y)*0.5 };
+
+        const toRgba = (hex, a) => {
+            const [r,g,b] = hexToRgb(hex);
+            return `rgba(${r},${g},${b},${a.toFixed(3)})`;
+        };
+
+        [[lIris, Math.hypot(lEyeOuter.x-lEyeInner.x, lEyeOuter.y-lEyeInner.y)],
+         [rIris, Math.hypot(rEyeOuter.x-rEyeInner.x, rEyeOuter.y-rEyeInner.y)]
+        ].forEach(([c, ew]) => {
+            const ir   = ew * 0.55;
+            const halo = Math.max(ir, glowR); // glow radius respects the slider
+
+            // Wide halo gradient — replaces passes 1+2 (two shadowBlur calls)
+            const g1 = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, halo);
+            g1.addColorStop(0,    toRgba(pal.inner, alpha));
+            g1.addColorStop(0.25, toRgba(pal.iris,  alpha * 0.9));
+            g1.addColorStop(0.55, toRgba(pal.glow,  alpha * 0.5));
+            g1.addColorStop(1.0,  toRgba(pal.glow,  0));
+            ctx.fillStyle = g1;
+            ctx.beginPath(); ctx.ellipse(c.x, c.y, halo, halo, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Bright core gradient — replaces passes 3+4
+            const coreR = ir * 0.55;
+            const g2 = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, coreR);
+            g2.addColorStop(0,   toRgba(pal.inner, alpha * 0.5));
+            g2.addColorStop(0.3,  toRgba(pal.inner, alpha));
+            g2.addColorStop(1.0,  toRgba(pal.inner, 0));
+            ctx.fillStyle = g2;
+            ctx.beginPath(); ctx.ellipse(c.x, c.y, coreR, coreR, 0, 0, Math.PI * 2); ctx.fill();
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LOAD SETTINGS  — file-picker, identical format to ascii-webcam
+// ─────────────────────────────────────────────────────────────────
+function loadSettings() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json,application/json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', async () => {
+        const file = input.files[0];
+        document.body.removeChild(input);
+        if (!file) return;
+        try { _applySettings(JSON.parse(await file.text())); setStatus('Settings loaded'); }
+        catch (e) { setStatus('Load failed: ' + e.message); }
+    });
+    input.click();
+}
+
+function _applySettings(s) {
+    const ss = (id, key, dispId, dec = 0) => {
+        const el = document.getElementById(id);
+        if (!el || s[key] == null) return;
+        const v = Math.max(+el.min, Math.min(+el.max, s[key]));
+        el.value = v; state[key] = v;
+        const d = document.getElementById(dispId);
+        if (d) d.textContent = dec > 0 ? v.toFixed(dec) : Math.round(v);
+    };
+    const sc  = (id, key) => { const el = document.getElementById(id); if (!el || s[key] == null) return; el.checked = s[key]; state[key] = s[key]; };
+    const sr  = (name, key) => { if (!s[key]) return; state[key] = s[key]; const r = document.querySelector(`[name=${name}][value="${s[key]}"]`); if (r) r.checked = true; };
+
+    ss('cols',        'cols',        'colsVal');
+    if (s.cols != null) _refreshSize();
+    if (s.charSize != null) { state.charSize = s.charSize; ss('charSize','charSize','charSizeVal'); _refreshSize(); }
+    if (s.charSpacingH != null) { state.charSpacingH = s.charSpacingH; const el = document.getElementById('charSpacingH'); if (el) el.value = -s.charSpacingH; const d = document.getElementById('charSpacingHVal'); if (d) d.textContent = s.charSpacingH + 'px'; }
+    if (s.charSpacingV != null) { state.charSpacingV = s.charSpacingV; const el = document.getElementById('charSpacingV'); if (el) el.value = 1 - s.charSpacingV; const d = document.getElementById('charSpacingVVal'); if (d) d.textContent = Math.round(s.charSpacingV) + 'px'; }
+    let td = false;
+    ['brightness','contrast','gamma','blackPt','whitePt','edgeBoost'].forEach((k,i) => { if (s[k] != null) { ss(k, k, k+'Val', [2,2,2,0,0,0][i]); td = true; } });
+    ['highlights','midtones','shadows'].forEach(k => { if (s[k] == null) return; state[k] = s[k]; const el=document.getElementById(k),d=document.getElementById(k+'Val'); if(el){el.value=s[k]; state[k]=s[k];} if(d) d.textContent=(s[k]>0?'+':'')+s[k]; td=true; });
+    if (s.invert != null) { sc('invert','invert'); td = true; }
+    if (td) markToneDirty();
+    sr('colorMode', 'colorMode');
+    if (s.charSet) { state.charSet = s.charSet; sr('charSet','charSet'); const cw=document.getElementById('customCharsWrap'); if(cw) cw.style.display = s.charSet==='custom'?'block':'none'; }
+    if (s.customChars != null) { state.customChars = s.customChars; const el=document.getElementById('customChars'); if(el) el.value=s.customChars; }
+    if (s.glowOn   != null) { state.glowOn   = s.glowOn;   sc('glowOn',   'glowOn'); }
+    if (s.glowLuma != null) { state.glowLuma = s.glowLuma; sc('glowLuma', 'glowLuma'); }
+    ss('glowGamma','glowGamma','glowGammaVal',1); ss('glowBlur','glowBlur','glowBlurVal'); ss('glowAlpha','glowAlpha','glowAlphaVal',2);
+    sc('caOn','caOn'); sc('caAnimated','caAnimated'); ss('caSpread','caSpread','caSpreadVal');
+    sc('scanlines','scanlines'); sc('vignette','vignette');
+    sc('mirror','mirror');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('statusMsg').textContent = msg; }
+
+// ─────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────
+function init() {
+    document.getElementById('btnCamera').disabled = true;
+
+    document.getElementById('btnCamera').addEventListener('click', async () => {
+        if (running) stopCamera(); else startCamera();
+    });
+    document.getElementById('btnFullscreen').addEventListener('click', () => {
+        if (!document.fullscreenElement) document.getElementById('previewWrap').requestFullscreen();
+        else document.exitFullscreen();
+    });
+    document.addEventListener('fullscreenchange', () => setTimeout(resizeCanvas, 80));
+
+    // Camera
+    document.getElementById('mirror').addEventListener('change', e => { state.mirror = e.target.checked; });
+    document.getElementById('cameraSource').addEventListener('change', e => { if (running) startCamera(e.target.value); });
+
+    // Face overlays
+    document.getElementById('meshOn').addEventListener('change', e => { state.meshOn = e.target.checked; });
+    document.getElementById('meshOpacity').addEventListener('input', e => { state.meshOpacity = +e.target.value; document.getElementById('meshOpacityVal').textContent = (+e.target.value).toFixed(2); });
+    document.querySelectorAll('[name=meshColor]').forEach(r => r.addEventListener('change', () => { state.meshColor = document.querySelector('[name=meshColor]:checked').value; }));
+    document.getElementById('eyeGlowOn').addEventListener('change', e => { state.eyeGlowOn = e.target.checked; });
+    document.querySelectorAll('[name=eyeColor]').forEach(r => r.addEventListener('change', () => { state.eyeColor = document.querySelector('[name=eyeColor]:checked').value; }));
+    document.getElementById('eyeGlow').addEventListener('input', e => { state.eyeGlow = +e.target.value; document.getElementById('eyeGlowVal').textContent = e.target.value; });
+    document.getElementById('eyeIntensity').addEventListener('input', e => { state.eyeIntensity = +e.target.value; document.getElementById('eyeIntensityVal').textContent = (+e.target.value).toFixed(2); });
+
+    // Resolution
+    document.getElementById('cols').addEventListener('input', e => { state.cols = +e.target.value; document.getElementById('colsVal').textContent = e.target.value; _refreshSize(); });
+
+    // Size & spacing
+    document.getElementById('charSize').addEventListener('input', e => { state.charSize = +e.target.value; document.getElementById('charSizeVal').textContent = e.target.value; _refreshSize(); });
+    document.getElementById('charSpacingH').addEventListener('input', e => { state.charSpacingH = -(+e.target.value); document.getElementById('charSpacingHVal').textContent = state.charSpacingH + 'px'; _refreshSize(); });
+    document.getElementById('charSpacingV').addEventListener('input', e => { state.charSpacingV = 1 - (+e.target.value); document.getElementById('charSpacingVVal').textContent = Math.round(state.charSpacingV) + 'px'; _refreshSize(); });
+
+    // Tone
+    const bindTone = (id, key, dispId, dec = 0) => {
+        const el = document.getElementById(id), d = document.getElementById(dispId);
+        el.addEventListener('input', () => { state[key] = parseFloat(el.value); d.textContent = dec > 0 ? parseFloat(el.value).toFixed(dec) : Math.round(el.value); markToneDirty(); });
+    };
+    bindTone('brightness','brightness','brightnessVal',2); bindTone('contrast','contrast','contrastVal',2);
+    bindTone('gamma','gamma','gammaVal',2);                 bindTone('blackPt','blackPt','blackPtVal');
+    bindTone('whitePt','whitePt','whitePtVal');              bindTone('edgeBoost','edgeBoost','edgeBoostVal');
+    ['highlights','midtones','shadows'].forEach(id => {
+        const el = document.getElementById(id), d = document.getElementById(id + 'Val');
+        el.addEventListener('input', () => { state[id] = +el.value; d.textContent = (el.value > 0 ? '+' : '') + el.value; markToneDirty(); });
+    });
+    document.getElementById('invert').addEventListener('change', e => { state.invert = e.target.checked; markToneDirty(); });
+
+    // Colour mode & char set
+    document.querySelectorAll('[name=colorMode]').forEach(r => r.addEventListener('change', () => { state.colorMode = document.querySelector('[name=colorMode]:checked').value; }));
+    document.querySelectorAll('[name=charSet]').forEach(r => r.addEventListener('change', () => {
+        state.charSet = document.querySelector('[name=charSet]:checked').value;
+        document.getElementById('customCharsWrap').style.display = state.charSet === 'custom' ? 'block' : 'none';
+    }));
+    document.getElementById('customChars').addEventListener('input', e => { state.customChars = e.target.value; });
+
+    // Glow
+    ['glowOn','glowLuma'].forEach(id => document.getElementById(id).addEventListener('change', e => { state[id] = e.target.checked; }));
+    const bindSlider = (id, key, dispId, dec = 0) => {
+        const el = document.getElementById(id), d = document.getElementById(dispId);
+        el.addEventListener('input', () => { state[key] = parseFloat(el.value); d.textContent = dec > 0 ? parseFloat(el.value).toFixed(dec) : Math.round(el.value); });
+    };
+    bindSlider('glowGamma','glowGamma','glowGammaVal',1);
+    bindSlider('glowBlur','glowBlur','glowBlurVal');
+    bindSlider('glowAlpha','glowAlpha','glowAlphaVal',2);
+
+    // CA
+    ['caOn','caAnimated'].forEach(id => document.getElementById(id).addEventListener('change', e => { state[id] = e.target.checked; }));
+    bindSlider('caSpread','caSpread','caSpreadVal');
+
+    // Overlays
+    ['scanlines','vignette'].forEach(id => document.getElementById(id).addEventListener('change', e => { state[id] = e.target.checked; }));
+
+    // Collapsible sections
+    document.querySelectorAll('.section-head').forEach(h => {
+        h.addEventListener('click', () => {
+            const body = document.getElementById(h.dataset.target);
+            if (!body) return;
+            const open = body.classList.toggle('open');
+            h.classList.toggle('open', open);
+        });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!running) return;
+        if (document.hidden) { cancelAnimationFrame(animFrame); animFrame = null; }
+        else { _fpsLast = performance.now(); _fpsFrames = 0; animFrame = requestAnimationFrame(renderLoop); }
+    });
+    window.addEventListener('resize', resizeCanvas);
+
+    if (!navigator.mediaDevices?.getUserMedia) setStatus('Camera not available — requires HTTPS');
+    initMediaPipe();
+}
+
+// expose loadSettings for onclick
+window._loadSettings = loadSettings;
+document.fonts.ready.then(init);
+</script>
+</body>
+</html>

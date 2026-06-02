@@ -70,7 +70,11 @@ const CLI = {
         SoundEngine.play('command_success');
 
         const leftDone = this._animDelay + 100;
-        setTimeout(() => { this.scrollBottom(); }, leftDone);
+        setTimeout(() => {
+            this.print(`${input}.exe run successfully. Type another command to continue navigation...`);
+            this.br();
+            this.scrollBottom();
+        }, leftDone);
 
         // Content command → right pane
         if (!this.splitOpen) {

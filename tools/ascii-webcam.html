@@ -61,6 +61,8 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 #asciiCanvas{display:block;image-rendering:pixelated;}
 .no-camera{color:var(--gdim);text-align:center;pointer-events:none;}
 .no-camera .nc-icon{font-size:40px;margin-bottom:12px;opacity:.3;}
+@keyframes countdownPop{0%{transform:scale(1.4);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:scale(0.8);opacity:0}}
+.countdown-num{font-family:'Share Tech Mono',monospace;font-size:clamp(80px,15vw,180px);color:var(--pink);text-shadow:0 0 40px rgba(255,45,120,.8),0 0 80px rgba(255,45,120,.4);animation:countdownPop 1s ease-out forwards;}
 
 /* ── CRT ── */
 @keyframes crtDrift{
@@ -91,6 +93,7 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
         <button class="btn green" id="btnCamera">[ START CAMERA ]</button>
         <button class="btn" id="btnSnapshot" disabled>[ SNAPSHOT ]</button>
         <button class="btn" id="btnShare" onclick="saveSettings()">[ SAVE SETTINGS ]</button>
+        <button class="btn" id="btnLoad" onclick="loadSettings()">[ LOAD SETTINGS ]</button>
         <button class="btn" id="btnFullscreen">[ ⛶ ]</button>
         <a href="ascii-converter.html" class="btn">[ ← CONVERTER ]</a>
     </div>
@@ -307,6 +310,10 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
         </div>
         <canvas id="asciiCanvas" style="display:none;"></canvas>
         <canvas id="asciiBloom"  style="display:none;position:absolute;pointer-events:none;mix-blend-mode:screen;"></canvas>
+        <!-- Countdown overlay — shown for 5 seconds before snapshot fires -->
+        <div id="snapshotCountdown" style="display:none;position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;pointer-events:none;">
+            <span id="countdownNum" class="countdown-num"></span>
+        </div>
         <div class="crt-glass"></div>
     </div>
 </div>
@@ -734,7 +741,59 @@ function renderLoop(ts) {
 // ─────────────────────────────────────────────────────────────────
 // SNAPSHOT
 // ─────────────────────────────────────────────────────────────────
-async function snapshot() {
+let _countdownTimer = null; // holds the setInterval ID when a countdown is running
+
+function startSnapshotCountdown() {
+    const canvas    = document.getElementById('asciiCanvas');
+    const btn       = document.getElementById('btnSnapshot');
+    const overlay   = document.getElementById('snapshotCountdown');
+    const numEl     = document.getElementById('countdownNum');
+    if (!canvas || canvas.style.display === 'none') return;
+
+    // If a countdown is already running, cancel it
+    if (_countdownTimer !== null) {
+        clearInterval(_countdownTimer);
+        _countdownTimer = null;
+        overlay.style.display = 'none';
+        btn.textContent = '[ SNAPSHOT ]';
+        setStatus('Snapshot cancelled');
+        return;
+    }
+
+    let count = 5;
+
+    const showCount = (n) => {
+        // Reset the animation each tick so it replays from the start on every number.
+        // Setting animation to 'none', forcing a reflow (void offsetWidth), then
+        // restoring it causes the browser to restart the keyframe animation fresh.
+        numEl.style.animation = 'none';
+        numEl.textContent     = n;
+        void numEl.offsetWidth;   // force reflow — makes the animation restart
+        numEl.style.animation = '';
+        overlay.style.display = 'flex';
+    };
+
+    btn.textContent = '[ CANCEL ]';
+    setStatus(`Snapshot in ${count}…`);
+    showCount(count);
+
+    _countdownTimer = setInterval(() => {
+        count--;
+        if (count > 0) {
+            setStatus(`Snapshot in ${count}…`);
+            showCount(count);
+        } else {
+            // Countdown finished — hide overlay, restore button, take the shot
+            clearInterval(_countdownTimer);
+            _countdownTimer = null;
+            overlay.style.display = 'none';
+            btn.textContent = '[ SNAPSHOT ]';
+            takeSnapshot();
+        }
+    }, 1000);
+}
+
+async function takeSnapshot() {
     const canvas = document.getElementById('asciiCanvas');
     if (!canvas || canvas.style.display === 'none') return;
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
@@ -814,6 +873,118 @@ async function saveSettings() {
     setStatus('Settings downloaded as ascii-settings.json');
 }
 
+function loadSettings() {
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = '.json,application/json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', async () => {
+        const file = input.files[0];
+        document.body.removeChild(input);
+        if (!file) return;
+        try {
+            const s = JSON.parse(await file.text());
+            _applySettings(s);
+            setStatus('Settings loaded');
+        } catch (e) {
+            setStatus('Load failed: ' + e.message);
+        }
+    });
+    input.click();
+}
+
+function _applySettings(s) {
+    // Helper: clamp a value to a slider's min/max, set both the element and state
+    const setSlider = (id, key, dispId, dec = 0) => {
+        const el = document.getElementById(id);
+        if (!el || s[key] == null) return;
+        const v = Math.max(+el.min, Math.min(+el.max, s[key]));
+        el.value = v; state[key] = v;
+        const d = document.getElementById(dispId);
+        if (d) d.textContent = dec > 0 ? v.toFixed(dec) : Math.round(v);
+    };
+    const setCb = (id, key) => {
+        const el = document.getElementById(id);
+        if (!el || s[key] == null) return;
+        el.checked = s[key]; state[key] = s[key];
+    };
+    const setRadio = (name, key) => {
+        if (!s[key]) return;
+        state[key] = s[key];
+        const r = document.querySelector(`[name=${name}][value="${s[key]}"]`);
+        if (r) r.checked = true;
+    };
+
+    // Resolution
+    setSlider('cols', 'cols', 'colsVal');
+
+    // Char size/spacing — spacing sliders are inverted so handle manually
+    if (s.charSize != null) { state.charSize = s.charSize; setSlider('charSize', 'charSize', 'charSizeVal'); }
+    if (s.charSpacingH != null) {
+        state.charSpacingH = s.charSpacingH;
+        const el = document.getElementById('charSpacingH'); if (el) el.value = -s.charSpacingH;
+        const d  = document.getElementById('charSpacingHVal'); if (d) d.textContent = s.charSpacingH + 'px';
+    }
+    if (s.charSpacingV != null) {
+        state.charSpacingV = s.charSpacingV;
+        const el = document.getElementById('charSpacingV'); if (el) el.value = 1 - s.charSpacingV;
+        const d  = document.getElementById('charSpacingVVal'); if (d) d.textContent = Math.round(s.charSpacingV) + 'px';
+    }
+    // Rebuild sample canvas if any sizing changed
+    if (s.cols != null || s.charSize != null || s.charSpacingH != null || s.charSpacingV != null) {
+        _refreshSize();
+    }
+
+    // Tone (all mark the LUT dirty)
+    const TONE = ['brightness','contrast','gamma','blackPt','whitePt','edgeBoost'];
+    const TONE_DISP = { brightness:'brightnessVal', contrast:'contrastVal', gamma:'gammaVal',
+                        blackPt:'blackPtVal', whitePt:'whitePtVal', edgeBoost:'edgeBoostVal' };
+    const TONE_DEC  = { brightness:2, contrast:2, gamma:2, blackPt:0, whitePt:0, edgeBoost:0 };
+    let toneDirty = false;
+    TONE.forEach(k => { if (s[k] != null) { setSlider(k, k, TONE_DISP[k], TONE_DEC[k]); toneDirty = true; } });
+    ['highlights','midtones','shadows'].forEach(k => {
+        if (s[k] == null) return;
+        const el = document.getElementById(k), d = document.getElementById(k + 'Val');
+        if (!el) return;
+        state[k] = Math.max(+el.min, Math.min(+el.max, s[k])); el.value = state[k];
+        if (d) d.textContent = (state[k] > 0 ? '+' : '') + state[k];
+        toneDirty = true;
+    });
+    if (s.invert != null) { setCb('invert', 'invert'); toneDirty = true; }
+    if (toneDirty) markToneDirty();
+
+    // Colour mode & character set
+    setRadio('colorMode', 'colorMode');
+    if (s.charSet) {
+        state.charSet = s.charSet;
+        const r = document.querySelector(`[name=charSet][value="${s.charSet}"]`); if (r) r.checked = true;
+        const cw = document.getElementById('customCharsWrap');
+        if (cw) cw.style.display = s.charSet === 'custom' ? 'block' : 'none';
+    }
+    if (s.customChars != null) {
+        state.customChars = s.customChars;
+        const el = document.getElementById('customChars'); if (el) el.value = s.customChars;
+    }
+
+    // Glow
+    setCb('glowOn',   'glowOn');
+    setCb('glowLuma', 'glowLuma');
+    setSlider('glowGamma', 'glowGamma', 'glowGammaVal', 1);
+    setSlider('glowBlur',  'glowBlur',  'glowBlurVal');
+    setSlider('glowAlpha', 'glowAlpha', 'glowAlphaVal', 2);
+
+    // CA
+    setCb('caOn',       'caOn');
+    setCb('caAnimated', 'caAnimated');
+    setSlider('caSpread', 'caSpread', 'caSpreadVal');
+
+    // Overlays & camera
+    setCb('scanlines', 'scanlines');
+    setCb('vignette',  'vignette');
+    setCb('mirror',    'mirror');
+}
+
 function init() {
     // Camera toggle
     document.getElementById('btnCamera').addEventListener('click', () => {
@@ -826,7 +997,7 @@ function init() {
     });
 
     // Snapshot
-    document.getElementById('btnSnapshot').addEventListener('click', snapshot);
+    document.getElementById('btnSnapshot').addEventListener('click', startSnapshotCountdown);
 
     // Fullscreen
     document.getElementById('btnFullscreen').addEventListener('click', () => {

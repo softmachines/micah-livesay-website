@@ -90,9 +90,9 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 <header class="header">
     <h1>ASCII // THEREMIN</h1>
     <div class="header-stats">
-        <div class="hstat">SCORE <span id="hScore">0</span></div>
+        <div class="hstat" id="hScoreStat">SCORE <span id="hScore">0</span></div>
         <div class="hstat">LEFT HAND <span id="hNote">—</span></div>
-        <div class="hstat">TARGET <span id="hTarget">—</span></div>
+        <div class="hstat" id="hTargetStat">TARGET <span id="hTarget">—</span></div>
         <div class="hstat" id="hFps">— fps</div>
     </div>
     <div class="hbtns">
@@ -121,6 +121,10 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
     <div class="section">
         <div class="section-head open" data-target="s-game"><span>GAME</span><span class="arrow">▶</span></div>
         <div class="section-body open" id="s-game">
+            <div class="check-row" style="margin-bottom:8px;">
+                <input type="checkbox" id="showGameUI">
+                <label for="showGameUI">Show game overlay &nbsp;<span style="color:var(--gdark);font-size:10px;">score, ruler, target note</span></label>
+            </div>
             <div style="font-size:10px;color:var(--gdim);margin-bottom:8px;line-height:1.5;">
                 <span style="color:var(--pink);">LEFT hand</span> up/down = pitch &nbsp;·&nbsp;
                 <span style="color:var(--pink);">RIGHT hand</span> up/down = volume
@@ -290,7 +294,7 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
         <div class="section-body" id="s-res">
             <div class="ctrl">
                 <label>Columns <span id="colsVal">60</span></label>
-                <input type="range" id="cols" min="20" max="200" value="60">
+                <input type="range" id="cols" min="20" max="400" value="60">
             </div>
             <div style="font-size:10px;color:var(--gdim);">Rows (auto): <span id="rowsVal">—</span></div>
         </div>
@@ -551,6 +555,7 @@ const state = {
     // master
     masterVol: 0.7, reverb: 0.3,
     // game (theremin-specific)
+    showGameUI:    false,
     rightHandMode: 'volume',   // 'volume' | 'filter'
     holdTime: 1.5, tolerance: 0.12,
 };
@@ -1293,51 +1298,51 @@ function renderOverlay(leftHand, rightHand, ts) {
     const W = track.width, H = track.height;
     ctx.clearRect(0, 0, W, H);
 
-    const RULER_W = 44;   // right-side ruler width in pixels
+    // When game UI is hidden collapse the ruler to zero width so the
+    // frequency indicator line and hand skeleton use the full canvas width.
+    const RULER_W = state.showGameUI ? 44 : 0;
 
-    // ── Frequency ruler ──
-    drawFreqRuler(ctx, W, H, RULER_W);
+    if (state.showGameUI) {
+        // ── Frequency ruler ──
+        drawFreqRuler(ctx, W, H, RULER_W);
 
-    // ── Target note band ──
-    if (game.targetNote) {
-        const targetY = freqToY(game.targetNote.freq) * H;
-        const bandH   = state.tolerance * 2 * H * 0.3; // visual height proportional to tolerance
-        const inRange = leftFreq && Math.abs(leftFreq / game.targetNote.freq - 1) < state.tolerance;
-        const flash   = game.flashMs > 0;
+        // ── Target note band ──
+        if (game.targetNote) {
+            const targetY = freqToY(game.targetNote.freq) * H;
+            const bandH   = state.tolerance * 2 * H * 0.3;
+            const inRange = leftFreq && Math.abs(leftFreq / game.targetNote.freq - 1) < state.tolerance;
+            const flash   = game.flashMs > 0;
 
-        // Band fill
-        const bandAlpha = inRange ? 0.25 : 0.12;
-        ctx.fillStyle   = flash ? `rgba(255,215,0,0.4)` :
-                          inRange ? `rgba(0,255,65,${bandAlpha})` : `rgba(0,255,204,${bandAlpha})`;
-        ctx.fillRect(0, targetY - bandH, W - RULER_W, bandH * 2);
+            const bandAlpha = inRange ? 0.25 : 0.12;
+            ctx.fillStyle   = flash ? `rgba(255,215,0,0.4)` :
+                              inRange ? `rgba(0,255,65,${bandAlpha})` : `rgba(0,255,204,${bandAlpha})`;
+            ctx.fillRect(0, targetY - bandH, W - RULER_W, bandH * 2);
 
-        // Target line
-        ctx.strokeStyle = flash ? '#ffd700' : inRange ? '#00ff41' : '#00ffcc';
-        ctx.lineWidth   = inRange ? 2.5 : 1.5;
-        ctx.setLineDash([6, 3]);
-        ctx.beginPath();
-        ctx.moveTo(0, targetY); ctx.lineTo(W - RULER_W - 2, targetY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Target note label
-        ctx.font      = `bold ${Math.round(H * 0.04)}px 'Share Tech Mono', monospace`;
-        ctx.fillStyle = flash ? '#ffd700' : inRange ? '#00ff41' : '#00ffcc';
-        ctx.textAlign = 'left';
-        ctx.fillText(`▶ ${game.targetNote.name}`, 8, targetY - bandH - 4);
-
-        // Hold-progress arc
-        if (game.holdMs > 0 && game.targetNote) {
-            const progress = Math.min(1, game.holdMs / (state.holdTime * 1000));
-            const cx = W - RULER_W - 30, cy = targetY, radius = 14;
-            ctx.strokeStyle = inRange ? '#00ff41' : '#00b32c';
-            ctx.lineWidth   = 3;
+            ctx.strokeStyle = flash ? '#ffd700' : inRange ? '#00ff41' : '#00ffcc';
+            ctx.lineWidth   = inRange ? 2.5 : 1.5;
+            ctx.setLineDash([6, 3]);
             ctx.beginPath();
-            ctx.arc(cx, cy, radius, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
+            ctx.moveTo(0, targetY); ctx.lineTo(W - RULER_W - 2, targetY);
             ctx.stroke();
-            ctx.strokeStyle = 'rgba(0,255,65,.15)';
-            ctx.lineWidth   = 2;
-            ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.font      = `bold ${Math.round(H * 0.04)}px 'Share Tech Mono', monospace`;
+            ctx.fillStyle = flash ? '#ffd700' : inRange ? '#00ff41' : '#00ffcc';
+            ctx.textAlign = 'left';
+            ctx.fillText(`▶ ${game.targetNote.name}`, 8, targetY - bandH - 4);
+
+            if (game.holdMs > 0) {
+                const progress = Math.min(1, game.holdMs / (state.holdTime * 1000));
+                const cx = W - RULER_W - 30, cy = targetY, radius = 14;
+                ctx.strokeStyle = inRange ? '#00ff41' : '#00b32c';
+                ctx.lineWidth   = 3;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(0,255,65,.15)';
+                ctx.lineWidth   = 2;
+                ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
+            }
         }
     }
 
@@ -1395,8 +1400,8 @@ function renderOverlay(leftHand, rightHand, ts) {
         }
     }
 
-    // ── Score display ──
-    if (game.active) {
+    // ── Score display (game UI only) ──
+    if (state.showGameUI && game.active) {
         ctx.textAlign = 'left';
         ctx.font      = `${Math.round(H * 0.05)}px 'Share Tech Mono', monospace`;
         ctx.fillStyle = game.flashMs > 0 ? '#ffd700' : '#ff2d78';
@@ -1567,7 +1572,21 @@ function _applySharedSettings(s) {
 // ─────────────────────────────────────────────────────────────────
 // SYNTH PRESETS
 // ─────────────────────────────────────────────────────────────────
-const SYNTH_PRESET_KEY = 'ascii-theremin-synth-presets';
+const SYNTH_PRESET_KEY   = 'ascii-theremin-synth-presets';
+const ACTIVE_STATE_KEY   = 'ascii-theremin-active-state';
+
+// Save the current full synth state so it survives a page reload.
+// Called immediately when a preset is loaded, and debounced when
+// individual controls change so every tweak is also persisted.
+function _saveActiveState() {
+    try { localStorage.setItem(ACTIVE_STATE_KEY, JSON.stringify(_getSynthState())); }
+    catch (_) {}
+}
+let _saveTimer = null;
+function _debouncedSave() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(_saveActiveState, 600);
+}
 
 const FACTORY_PRESETS = [
     { name:'VAPOR PAD',   s:{ waveform:'sawtooth', numOscs:5, detuneSpread:25, detune:0, filterCutoff:800,  filterRes:3,  filterType:'lowpass', lfoOn:true,  lfoRate:0.28, lfoDepth:400,  lfoWave:'sine',     chorusOn:true,  chorusRate:0.6,  chorusDepth:3.5, chorusMix:0.65, driveType:'soft', driveAmount:15, masterVol:0.7, reverb:0.45 } },
@@ -1594,7 +1613,7 @@ function _getSynthState() {
         // master
         masterVol:state.masterVol, reverb:state.reverb,
         // game / hand control
-        rightHandMode:state.rightHandMode, holdTime:state.holdTime, tolerance:state.tolerance,
+        showGameUI:state.showGameUI, rightHandMode:state.rightHandMode, holdTime:state.holdTime, tolerance:state.tolerance,
         // display — resolution & spacing
         cols:state.cols, charSize:state.charSize, charSpacingH:state.charSpacingH, charSpacingV:state.charSpacingV,
         // display — tone
@@ -1669,6 +1688,13 @@ function applySynthPreset(s) {
     set('masterVol', s.masterVol);       setDisp('masterVolVal', s.masterVol, 2);
     set('reverb', s.reverb);             setDisp('reverbVal', s.reverb, 2);
     // ── Game / hand control ──
+    if (s.showGameUI != null) {
+        state.showGameUI = s.showGameUI;
+        const el = document.getElementById('showGameUI'); if (el) el.checked = s.showGameUI;
+        const ss = document.getElementById('hScoreStat'),  ts = document.getElementById('hTargetStat');
+        if (ss) ss.style.display = s.showGameUI ? '' : 'none';
+        if (ts) ts.style.display = s.showGameUI ? '' : 'none';
+    }
     if (s.rightHandMode != null) {
         state.rightHandMode = s.rightHandMode;
         const r = document.querySelector(`[name=rightHandMode][value="${s.rightHandMode}"]`);
@@ -1726,6 +1752,8 @@ function applySynthPreset(s) {
     _applyDrive();
     masterGain.gain.setTargetAtTime(s.masterVol, audioCtx.currentTime, 0.05);
     _applyReverbMix();
+    // Persist the newly loaded state so it survives a page reload
+    _saveActiveState();
 }
 
 function renderPresetList() {
@@ -1780,6 +1808,18 @@ function init() {
     });
 
     // Game settings
+    // Game overlay toggle
+    const _applyGameUIVisibility = () => {
+        const show = state.showGameUI;
+        document.getElementById('hScoreStat').style.display  = show ? '' : 'none';
+        document.getElementById('hTargetStat').style.display = show ? '' : 'none';
+    };
+    document.getElementById('showGameUI').addEventListener('change', e => {
+        state.showGameUI = e.target.checked;
+        _applyGameUIVisibility();
+    });
+    _applyGameUIVisibility(); // apply on load (default: hidden)
+
     document.querySelectorAll('[name=rightHandMode]').forEach(r => r.addEventListener('change', () => {
         state.rightHandMode = document.querySelector('[name=rightHandMode]:checked').value;
         // Reset smoothed openness so there's no stale value on mode switch
@@ -1806,6 +1846,7 @@ function init() {
             state[key] = parseFloat(el.value);
             d.textContent = dec > 0 ? parseFloat(el.value).toFixed(dec) : Math.round(el.value);
             if (fn) fn();
+            _debouncedSave(); // persist every tweak
         });
     };
     synthSlider('numOscs',      'numOscs',      'numOscsVal',      0, () => { if (audioCtx) _applyOscSettings(); });
@@ -1816,6 +1857,7 @@ function init() {
     document.querySelectorAll('[name=filterType]').forEach(r => r.addEventListener('change', () => {
         state.filterType = document.querySelector('[name=filterType]:checked').value;
         if (filter) filter.type = state.filterType;
+        _debouncedSave();
     }));
     synthSlider('filterCutoff', 'filterCutoff', 'filterCutoffVal', 0, () => { if (filter) filter.frequency.setTargetAtTime(state.filterCutoff, audioCtx.currentTime, 0.05); });
     synthSlider('filterRes',    'filterRes',    'filterResVal',    1, () => { if (filter) filter.Q.setTargetAtTime(state.filterRes, audioCtx.currentTime, 0.05); });
@@ -1824,16 +1866,18 @@ function init() {
     document.getElementById('lfoOn').addEventListener('change', e => {
         state.lfoOn = e.target.checked;
         if (lfoGainNode) lfoGainNode.gain.setTargetAtTime(state.lfoOn ? state.lfoDepth : 0, audioCtx.currentTime, 0.1);
+        _debouncedSave();
     });
     document.querySelectorAll('[name=lfoWave]').forEach(r => r.addEventListener('change', () => {
         state.lfoWave = document.querySelector('[name=lfoWave]:checked').value;
         if (lfoOsc) lfoOsc.type = state.lfoWave;
+        _debouncedSave();
     }));
     synthSlider('lfoRate',  'lfoRate',  'lfoRateVal',  2, () => { if (lfoOsc) lfoOsc.frequency.setTargetAtTime(state.lfoRate, audioCtx.currentTime, 0.05); });
     synthSlider('lfoDepth', 'lfoDepth', 'lfoDepthVal', 0, () => { if (lfoGainNode) lfoGainNode.gain.setTargetAtTime(state.lfoOn ? state.lfoDepth : 0, audioCtx.currentTime, 0.05); });
 
     // Chorus
-    document.getElementById('chorusOn').addEventListener('change', e => { state.chorusOn = e.target.checked; if (audioCtx) _applyChorusMix(); });
+    document.getElementById('chorusOn').addEventListener('change', e => { state.chorusOn = e.target.checked; if (audioCtx) _applyChorusMix(); _debouncedSave(); });
     synthSlider('chorusRate',  'chorusRate',  'chorusRateVal',  1, () => { if (audioCtx) _applyChorusMix(); });
     synthSlider('chorusDepth', 'chorusDepth', 'chorusDepthVal', 1, () => { if (audioCtx) _applyChorusMix(); });
     synthSlider('chorusMix',   'chorusMix',   'chorusMixVal',   2, () => { if (audioCtx) _applyChorusMix(); });
@@ -1842,6 +1886,7 @@ function init() {
     document.querySelectorAll('[name=driveType]').forEach(r => r.addEventListener('change', () => {
         state.driveType = document.querySelector('[name=driveType]:checked').value;
         if (audioCtx) _applyDrive();
+        _debouncedSave();
     }));
     synthSlider('driveAmount', 'driveAmount', 'driveAmountVal', 0, () => { if (audioCtx) _applyDrive(); });
 
@@ -1851,8 +1896,14 @@ function init() {
 
     // ── Preset system ───────────────────────────────────────────────
     renderPresetList();
-    // Load Cyber Lead as the default sound on startup
-    applySynthPreset(FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s);
+    // Restore last active state if available, otherwise fall back to Cyber Lead
+    const _lastState = localStorage.getItem(ACTIVE_STATE_KEY);
+    if (_lastState) {
+        try { applySynthPreset(JSON.parse(_lastState)); }
+        catch (_) { applySynthPreset(FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s); }
+    } else {
+        applySynthPreset(FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s);
+    }
     document.getElementById('btnSavePreset').addEventListener('click', () => {
         const name = document.getElementById('presetName').value.trim();
         if (!name) { setStatus('Enter a preset name first'); return; }

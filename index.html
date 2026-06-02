@@ -1,80 +1,374 @@
 <!DOCTYPE html>
+<!--
+    DOCTYPE tells the browser this is a modern HTML5 document.
+    Without it, browsers switch into "quirks mode" and layout behaves
+    unpredictably. Always put this as the very first line.
+-->
+
 <html lang="en">
+<!--
+    <html> is the root element that wraps everything.
+    lang="en" helps screen readers pronounce text correctly and assists
+    search engines in understanding the page language.
+-->
+
 <head>
+<!--
+    <head> holds metadata — information ABOUT the page, not visible content.
+    None of the tags inside <head> appear directly on the screen.
+-->
+
+    <!-- CHARACTER ENCODING
+         UTF-8 supports every character in every language, including symbols
+         like ██ and ─ used in this site's terminal aesthetic.
+         Always put this first inside <head> so the browser knows how to
+         decode the rest of the file. -->
     <meta charset="UTF-8">
+
+    <!-- VIEWPORT (MOBILE RESPONSIVENESS)
+         Without this, mobile browsers zoom out and show a desktop-sized page.
+         width=device-width  → use the actual screen width, not a fake wide width
+         initial-scale=1.0   → don't zoom in or out at first load -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- PAGE TITLE
+         Shown in the browser tab and used by search engines as the page headline. -->
     <title>MICAH LIVESAY // AUDIO ENGINEER</title>
+
+    <!-- GOOGLE FONTS — PRECONNECT HINTS
+         <link rel="preconnect"> opens the connection to the font server early,
+         before the actual font files are requested. This shaves off latency.
+         Two connections are needed: one for the API, one for the static files (crossorigin). -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
 
-    <!-- SPLASH: shown before boot, dismissed by any key or click -->
+    <!-- GOOGLE FONTS — ACTUAL FONT REQUEST
+         Loads two monospace fonts:
+           Share Tech Mono — used for body text, labels, CLI output
+           VT323            — used for the retro terminal headings
+         display=swap means the browser shows a fallback font immediately
+         and swaps to the custom font once it downloads (avoids invisible text). -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+
+    <!-- STYLESHEET
+         Links the external CSS file that controls all visual styling.
+         href is a relative path — "css/style.css" means "look in the css
+         folder, inside the same folder as this HTML file". -->
+    <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+<!--
+    <body> contains everything the user actually sees and interacts with.
+    JavaScript adds and removes classes on body elements to control what's
+    visible at each stage: splash → boot → CLI interaction.
+-->
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SPLASH SCREEN
+         ═══════════════════════════════════════════════════════════════
+         This overlay covers the whole page on first load.
+         It is shown BEFORE the boot sequence runs.
+
+         HOW IT WORKS:
+         - CSS positions it with position:fixed to cover the viewport
+         - main.js listens for any keypress or mouse click
+         - When triggered, main.js fires a glitch-out CSS animation
+           and then hides the splash, starting the boot sequence
+
+         The id="splash" lets JavaScript find and control this element:
+           document.getElementById('splash')  →  grabs this div
+    -->
     <div id="splash" class="splash-screen">
-        <!-- StaticEffect canvases injected here by main.js -->
+
+        <!-- Two <canvas> elements for an animated static/noise effect are
+             injected here programmatically by StaticEffect.js at runtime.
+             We leave this comment as a reminder instead of hardcoding them,
+             because the JS class creates and positions them itself. -->
+
+        <!-- The visible content inside the splash screen -->
         <div class="splash-content">
+
+            <!-- System identity header — purely decorative terminal text -->
             <div class="splash-sysid">
                 <span>MicahWarez_OS v2.0.77 </span>
                 <span>Neural Interface Terminal </span>
+                <!-- inline style overrides a specific CSS property just for this element.
+                     Used sparingly here to tint this one line dimmer than its siblings.
+                     var(--green-dim) references a CSS custom property (variable)
+                     defined in style.css under :root { } -->
                 <span style="color:var(--green-dim);opacity:0.6;text-shadow:0 0 4px rgba(0,179,44,0.4);">contact terminal administrator on: micahslivesay@gmail.com</span>
             </div>
+
+            <!-- Visual divider — just a string of box-drawing characters.
+                 No special HTML needed; these are plain Unicode characters. -->
             <div class="splash-divider">────────────────────────────────────</div>
+
+            <!-- STATUS INDICATORS
+                 Each row uses two <span> elements side by side.
+                 CSS (display:grid or flex on the parent) lays them out as a table.
+                 The "status-indicator" spans show the coloured ██ blocks;
+                 the CSS class "armed" vs "active" gives them different colours. -->
             <div class="splash-status">
                 <span class="status-label">DECK</span><span class="status-value"><span class="status-indicator armed">██</span> ARMED</span>
                 <span class="status-label">EEG SIGNAL</span><span class="status-value"><span class="status-indicator active">██</span> LOCKED</span>
                 <span class="status-label">OPERATOR</span><span class="status-value"><span class="status-indicator active">██</span> DETECTED</span>
             </div>
+
             <div class="splash-divider">────────────────────────────────────</div>
+
+            <!-- Call-to-action prompt — CSS animates the opacity to make it pulse -->
             <div class="splash-prompt">▶&nbsp; PRESS ANY KEY TO BOOT &nbsp;◀</div>
-            
+            <!--
+                &nbsp; is an HTML entity for a non-breaking space — a space that
+                won't collapse or allow a line-break. Used here for visual padding
+                around the text without relying on CSS margin.
+            -->
+
         </div>
     </div>
+    <!-- END SPLASH SCREEN -->
 
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         CRT WRAPPER — THE MONITOR EFFECT STACK
+         ═══════════════════════════════════════════════════════════════
+         This div wraps the entire terminal UI and applies the retro
+         CRT monitor visual effects. Several layers are stacked on top
+         of each other using CSS position:absolute/fixed — each layer
+         is transparent except for its specific effect:
+
+           Layer 1 (bottom): pane-container  — the actual content
+           Layer 2: .scanlines               — horizontal scan-line grid
+           Layer 3: .screen-glitch-overlay   — chromatic aberration flash
+           Layer 4: .crt-glass               — rounded-corner vignette + glare
+    -->
     <div class="crt-wrapper">
+
+        <!-- SCANLINES OVERLAY
+             A semi-transparent div with a repeating CSS gradient that creates
+             thin horizontal dark lines across the whole screen — mimicking
+             the phosphor rows of an old CRT monitor.
+             pointer-events:none in CSS means mouse clicks pass straight through
+             this layer to whatever is underneath. -->
         <div class="scanlines"></div>
+
+        <!-- GLITCH OVERLAY
+             Normally invisible (opacity 0). When a chromatic aberration glitch
+             is triggered by main.js, a CSS animation class is added to this div
+             that briefly flashes coloured horizontal stripes — simulating
+             a signal error on an old monitor.
+             id="glitch-overlay" lets JavaScript target it:
+               document.getElementById('glitch-overlay').classList.add('active') -->
         <div class="screen-glitch-overlay" id="glitch-overlay"></div>
-        <!-- Glass surface overlay: reflection highlight + edge depth -->
+
+        <!-- CRT GLASS OVERLAY
+             A radial gradient that darkens the screen edges (vignette) and adds
+             a subtle highlight in the top-left corner (screen glare).
+             Also applies a very subtle horizontal line pattern for texture.
+             Pure CSS — no JavaScript touches this. -->
         <div class="crt-glass"></div>
 
+
+        <!-- ═══════════════════════════════════════════════════════════
+             PANE CONTAINER — THE SPLIT-SCREEN LAYOUT
+             ═══════════════════════════════════════════════════════════
+             This is the main UI container. It uses CSS Grid or Flexbox
+             (defined in style.css) to lay out three children side by side:
+               [LEFT PANE] [DIVIDER] [RIGHT PANE]
+
+             Initially the divider and right pane are hidden.
+             When the user types their first command, cli.js triggers an
+             animation that draws the divider line and expands the right pane.
+
+             id="pane-container" is used by main.js to apply the CRT drift
+             animation (a gentle transform:translate() oscillation). -->
         <div class="pane-container" id="pane-container">
 
-            <!-- LEFT: boot output + CLI input -->
+
+            <!-- ─────────────────────────────────────────────────────
+                 LEFT PANE — boot output + CLI input prompt
+                 ─────────────────────────────────────────────────────
+                 This pane contains two children:
+                   #output      — where boot text and command history appears
+                   #input-line  — the $ prompt where the user types
+
+                 During boot: #input-line is hidden (display:none)
+                 After boot:  boot.js calls a callback that shows #input-line
+                              and gives it keyboard focus
+            -->
             <div class="left-pane" id="left-pane">
+
+                <!-- OUTPUT AREA
+                     boot.js appends <span> elements here as the boot sequence runs.
+                     cli.js also appends lines here when the user runs commands.
+                     JavaScript does this with:
+                       const span = document.createElement('span');
+                       span.textContent = 'some text';
+                       outputEl.appendChild(span);
+                     The div grows downward as content is added; CSS overflow:auto
+                     adds a scrollbar when it gets too long. -->
                 <div class="output" id="output"></div>
+
+                <!-- CLI INPUT LINE
+                     style="display:none" hides this initially.
+                     main.js removes this inline style (or sets it to 'flex')
+                     after the boot sequence completes.
+
+                     Three children:
+                       .prompt        — the non-editable "MICAH@LIVESAY:~$" prefix
+                       #input-display — shows what the user is typing (updated by JS)
+                       .cursor        — the blinking █ block cursor (CSS animation)
+
+                     There is NO <input> element here. Instead, main.js listens for
+                     keydown events on the whole document and manually builds a
+                     string character by character, then updates #input-display.
+                     This gives full control over the retro terminal appearance. -->
                 <div class="input-line" id="input-line" style="display:none;">
                     <span class="prompt">MICAH@LIVESAY:~$&nbsp;</span>
                     <span class="input-display" id="input-display"></span><span class="cursor">█</span>
                 </div>
-            </div>
 
-            <!-- DIVIDER: animates into existence on first command -->
+            </div>
+            <!-- END LEFT PANE -->
+
+
+            <!-- ─────────────────────────────────────────────────────
+                 PANE DIVIDER
+                 ─────────────────────────────────────────────────────
+                 A thin vertical line between the two panes.
+                 Initially has zero width; cli.js animates it to its full
+                 height using a CSS transition when the first command runs.
+                 The "drawing in" effect is achieved by animating
+                 max-height from 0 to 100%. -->
             <div class="pane-divider" id="pane-divider"></div>
 
-            <!-- RIGHT: command output -->
+
+            <!-- ─────────────────────────────────────────────────────
+                 RIGHT PANE — command output / page content
+                 ─────────────────────────────────────────────────────
+                 This pane is hidden until the first CLI command is run.
+                 It contains four children:
+
+                   #switch-canvas   — full-pane canvas for the static-burst
+                                      transition animation between content pages
+                   #right-header    — title bar at the top of each page
+                   #right-content   — the actual page text (profile, portfolio…)
+                   #right-ghost-*   — custom scrollbar (not the browser default)
+            -->
             <div class="right-pane" id="right-pane">
-                <!-- Static burst canvas — covers full right pane during content switch -->
+
+                <!-- STATIC BURST TRANSITION CANVAS
+                     When the user types a command that loads new content,
+                     cli.js plays a static-TV-noise animation over this canvas
+                     to mask the content swap — making it look like a signal
+                     glitch rather than an instant page change.
+
+                     <canvas> is a blank drawing surface. JavaScript uses its
+                     2D context (canvas.getContext('2d')) to draw pixels directly.
+                     StaticEffect.js and cli.js control this canvas. -->
                 <canvas id="switch-canvas"></canvas>
+
+                <!-- RIGHT PANE HEADER
+                     cli.js populates this with the page title when a command runs.
+                     e.g. typing "profile" sets this to "// PROFILE" -->
                 <div class="right-header" id="right-header"></div>
+
+                <!-- RIGHT PANE CONTENT
+                     The main content area. cli.js clears this and injects new
+                     HTML here on every command — the portfolio entries, profile
+                     text, blog posts etc. all live in content.js as data and
+                     are converted to HTML elements by cli.js's parser. -->
                 <div class="right-content" id="right-content"></div>
-                <!-- Ghost line custom scrollbar -->
+
+                <!-- CUSTOM SCROLLBAR
+                     The browser's native scrollbar is hidden in CSS
+                     (scrollbar-width: none). These two divs replace it:
+                       #right-ghost-track — the thin background rail
+                       #right-ghost-thumb — the draggable position indicator
+
+                     cli.js's initRightScrollbar() function syncs the thumb
+                     position with the actual scroll position of #right-content
+                     using a scroll event listener. -->
                 <div id="right-ghost-track">
                     <div id="right-ghost-thumb"></div>
                 </div>
+
             </div>
+            <!-- END RIGHT PANE -->
 
         </div>
-    </div>
+        <!-- END PANE CONTAINER -->
 
-    <!-- Phosphor trail canvas — sits above everything, pointer-events none -->
+    </div>
+    <!-- END CRT WRAPPER -->
+
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         PHOSPHOR TRAIL CANVAS
+         ═══════════════════════════════════════════════════════════════
+         A full-screen <canvas> that floats above everything else.
+         main.js draws a fading trail of dots here that follows the
+         mouse cursor, mimicking the glow trail of a phosphor display.
+
+         CSS sets:
+           position: fixed       — stays in place as content scrolls
+           pointer-events: none  — mouse clicks pass through to elements below
+           z-index: high         — sits visually on top of everything
+
+         The trail effect works by drawing small circles on mousemove,
+         then clearing the canvas at a lower opacity each frame via
+         requestAnimationFrame — so old dots fade rather than vanish instantly.
+    -->
     <canvas id="cursor-trail"></canvas>
 
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         JAVASCRIPT FILES — loaded at the bottom of <body>
+         ═══════════════════════════════════════════════════════════════
+         Scripts are placed here (end of body) rather than in <head>
+         for a critical reason: by the time the browser reaches these
+         lines, all the HTML elements above already exist in the DOM
+         (Document Object Model). If scripts were in <head>, they would
+         run before the HTML was parsed, and getElementById() calls
+         would return null because the elements don't exist yet.
+
+         ORDER MATTERS — each file may depend on the one before it:
+
+           content.js      — defines SITE_CONTENT (the data object with
+                             all page text, boot lines, etc.)
+                             Must load first so other scripts can read it.
+
+           StaticEffect.js — defines the StaticEffect class for the
+                             TV noise animation. Must exist before main.js
+                             creates an instance of it.
+
+           sound-engine.js — defines SoundEngine (plays subtle audio cues
+                             during boot). Must exist before boot.js calls it.
+
+           boot.js         — defines the Boot object that manages the
+                             boot sequence animation. Reads from SITE_CONTENT.
+                             Must load before main.js triggers it.
+
+           cli.js          — defines the CLI object: command parsing,
+                             page rendering, scrollbar. Must load before
+                             main.js wires up the keyboard listener.
+
+           main.js         — the entry point. Runs setup() which:
+                             1. Creates the StaticEffect on the splash screen
+                             2. Listens for key/click to dismiss the splash
+                             3. Runs Boot.run() to start the boot sequence
+                             4. After boot completes: shows the input line
+                                and starts listening for CLI commands
+                             This must be LAST because it depends on everything above.
+    -->
     <script src="js/content.js"></script>
     <script src="js/StaticEffect.js"></script>
     <script src="js/sound-engine.js"></script>
     <script src="js/boot.js"></script>
     <script src="js/cli.js"></script>
     <script src="js/main.js"></script>
+
 </body>
 </html>
