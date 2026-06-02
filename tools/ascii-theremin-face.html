@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ASCII THEREMIN</title>
+<title>ASCII THEREMIN // FACE</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -13,17 +13,48 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{height:100%;background:#000;font-family:'Share Tech Mono',monospace;color:var(--green);font-size:13px;}
 
-/* Layout */
-.app{display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:240px 1fr;height:100vh;}
-.header{grid-column:1/-1;background:var(--bg);border-bottom:1px solid var(--gdark);padding:8px 18px;display:flex;align-items:center;gap:16px;flex-shrink:0;}
+/* Layout — sidebar and header both removed from grid, now fixed overlays */
+.app{display:grid;grid-template-rows:1fr auto;grid-template-columns:1fr;height:100vh;}
+.header{
+    position:fixed;top:0;left:0;right:0;z-index:52;
+    background:rgba(1,8,2,0.96);border-bottom:1px solid var(--gdark);
+    padding:8px 18px;display:flex;align-items:center;gap:16px;
+    backdrop-filter:blur(4px);
+    transform:translateY(-100%);
+    transition:transform 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+.header.header-open{transform:translateY(0);box-shadow:0 4px 24px rgba(0,0,0,0.7);}
+/* Thin pink edge strip at top — hints at hover zone */
+.header-edge{
+    position:fixed;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(to bottom,rgba(255,45,120,0.5),transparent);
+    z-index:49;pointer-events:none;transition:opacity 0.2s;
+}
+.header-edge.hidden{opacity:0;}
 .header h1{color:var(--pink);font-size:13px;letter-spacing:2px;text-shadow:0 0 8px rgba(255,45,120,.5);white-space:nowrap;}
 .header-stats{display:flex;gap:20px;margin-left:auto;align-items:center;}
 .hstat{font-size:11px;color:var(--gdim);}
 .hstat span{color:var(--green);}
 .hbtns{display:flex;gap:6px;}
-.sidebar{background:var(--panel);border-right:1px solid var(--gdark);overflow-y:auto;}
+/* Sidebar — fixed overlay, slides in from the left on hover */
+.sidebar{
+    position:fixed;left:-242px;top:0;width:240px;height:100vh;
+    background:rgba(6,14,7,0.96);border-right:1px solid var(--gdark);
+    overflow-y:auto;z-index:50;
+    transition:left 0.22s cubic-bezier(0.4,0,0.2,1);
+    backdrop-filter:blur(4px);
+}
+.sidebar.sidebar-open{left:0;box-shadow:4px 0 24px rgba(0,0,0,0.7);}
 .sidebar::-webkit-scrollbar{width:2px;}
 .sidebar::-webkit-scrollbar-thumb{background:var(--gdark);}
+/* Thin pink edge strip — visible when sidebar is closed, hints at hover zone */
+.sidebar-edge{
+    position:fixed;left:0;top:0;width:3px;height:100vh;
+    background:linear-gradient(to right,rgba(255,45,120,0.5),transparent);
+    z-index:49;pointer-events:none;
+    transition:opacity 0.2s;
+}
+.sidebar-edge.hidden{opacity:0;}
 .main{background:#000;display:flex;flex-direction:column;overflow:hidden;position:relative;}
 .statusbar{grid-column:1/-1;background:var(--bg);border-top:1px solid var(--gdark);padding:4px 18px;color:var(--gdim);font-size:11px;display:flex;gap:24px;}
 
@@ -56,7 +87,31 @@ select.ctrl-select{width:100%;background:var(--bg);border:1px solid var(--gdark)
 .preview-wrap{flex:1;display:flex;align-items:center;justify-content:center;background:#000;position:relative;overflow:hidden;}
 #asciiCanvas{display:block;image-rendering:pixelated;position:relative;z-index:1;}
 #asciiBloom{display:none;position:absolute;pointer-events:none;mix-blend-mode:screen;z-index:2;}
-#trackingCanvas{display:none;position:absolute;pointer-events:none;z-index:3;}
+#faceCanvas{display:none;position:absolute;pointer-events:none;z-index:3;}
+#trackingCanvas{display:none;position:absolute;pointer-events:none;z-index:4;}
+@keyframes faceGlitchOut{
+    0%  {opacity:1;filter:none;transform:none;clip-path:inset(0 0 0 0);}
+    8%  {filter:hue-rotate(90deg) saturate(5) brightness(3);transform:translate(-5px,0) skewX(4deg);}
+    16% {filter:hue-rotate(210deg) saturate(3) brightness(2);transform:translate(5px,2px) skewX(-3deg);clip-path:inset(10% 0 25% 0);}
+    24% {filter:hue-rotate(330deg) saturate(6) brightness(4);transform:translate(-4px,-2px) scaleX(1.04);clip-path:inset(0 0 0 0);}
+    32% {filter:saturate(0) brightness(6) contrast(10);transform:translate(4px,1px) skewX(5deg);clip-path:inset(0 0 45% 0);}
+    42% {filter:hue-rotate(160deg) saturate(5) brightness(2.5);transform:translate(-5px,0);clip-path:inset(0 0 0 0);opacity:1;}
+    54% {filter:hue-rotate(280deg) saturate(4) brightness(3);transform:translate(4px,-1px);clip-path:inset(35% 0 15% 0);}
+    66% {opacity:0.5;filter:saturate(0) brightness(8);transform:translate(-2px,2px);}
+    78% {opacity:0.15;filter:hue-rotate(70deg) saturate(4);transform:translate(2px,0);clip-path:inset(0 0 65% 0);}
+    90% {opacity:0.04;filter:saturate(0) brightness(3);transform:scaleY(0.3);}
+    100%{opacity:0;transform:scaleY(0);clip-path:inset(50% 0 50% 0);}
+}
+@keyframes faceGlitchIn{
+    0%  {opacity:0;filter:saturate(8) brightness(12) hue-rotate(280deg);transform:scaleY(0.05);clip-path:inset(48% 0 48% 0);}
+    14% {filter:hue-rotate(90deg) saturate(5) brightness(4);transform:scaleY(0.25) skewX(-4deg);clip-path:inset(20% 0 40% 0);opacity:0.35;}
+    28% {filter:hue-rotate(-90deg) saturate(4) brightness(3);transform:scaleY(0.65) skewX(3deg);clip-path:inset(0 0 0 0);opacity:0.55;}
+    42% {filter:hue-rotate(180deg) saturate(6) brightness(2.5);transform:translate(-3px,0) scaleY(0.9);opacity:0.72;}
+    56% {filter:hue-rotate(-45deg) saturate(4) brightness(2);transform:translate(2px,0);opacity:0.84;}
+    70% {filter:hue-rotate(90deg) saturate(3) brightness(1.5);transform:translate(-1px,1px);opacity:0.92;}
+    85% {filter:saturate(2) brightness(1.2);transform:none;opacity:0.97;}
+    100%{filter:none;opacity:1;transform:none;clip-path:none;}
+}
 .no-camera{position:absolute;color:var(--gdim);text-align:center;z-index:10;}
 .no-camera .icon{font-size:48px;margin-bottom:12px;opacity:.2;}
 .loading-bar{width:200px;height:2px;background:var(--gdark);margin:12px auto 0;overflow:hidden;}
@@ -82,13 +137,77 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 .preset-input{background:transparent;border:1px solid var(--gdark);color:var(--green);font-family:inherit;font-size:11px;padding:3px 6px;outline:none;flex:1;min-width:0;}
 .preset-input:focus{border-color:var(--green);}
 .preset-input::placeholder{color:var(--gdark);}
+/* ── SPLASH SCREEN — exact match to main site style.css ── */
+.splash{position:fixed;inset:0;z-index:200;background:transparent;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;}
+.splash-inner{text-align:center;position:relative;z-index:2;animation:splashPulse 3.5s ease-in-out infinite;}
+@keyframes splashPulse{0%,100%{opacity:0.75}50%{opacity:1}}
+.splash-inner.glitch-out{animation:splashGlitchOut 0.65s linear forwards;}
+@keyframes splashGlitchOut{
+    0%  {opacity:1;filter:none;transform:none;clip-path:inset(0 0 0 0);}
+    8%  {filter:hue-rotate(90deg) saturate(5) brightness(3);transform:translate(-8px,0) skewX(4deg);}
+    16% {filter:hue-rotate(210deg) saturate(3) brightness(2);transform:translate(6px,2px) skewX(-3deg);clip-path:inset(10% 0 25% 0);}
+    24% {filter:hue-rotate(330deg) saturate(6) brightness(4);transform:translate(-5px,-2px) scaleX(1.04);clip-path:inset(0 0 0 0);}
+    32% {filter:saturate(0) brightness(6) contrast(10);transform:translate(4px,1px) skewX(5deg);clip-path:inset(0 0 45% 0);}
+    40% {filter:hue-rotate(160deg) saturate(5) brightness(2.5);transform:translate(-6px,0) skewX(-4deg);clip-path:inset(0 0 0 0);opacity:1;}
+    48% {filter:hue-rotate(280deg) saturate(4) brightness(3);transform:translate(5px,-1px);clip-path:inset(35% 0 15% 0);}
+    56% {filter:saturate(0) brightness(9) contrast(16);transform:translate(-3px,2px) scaleX(0.97);clip-path:inset(0 0 0 0);}
+    64% {opacity:0.55;filter:hue-rotate(70deg) saturate(4) brightness(2.5);transform:translate(3px,0) skewX(3deg);clip-path:inset(0 0 65% 0);}
+    74% {opacity:0.25;filter:saturate(0) brightness(4);transform:translate(-2px,-1px);clip-path:inset(55% 0 0 0);}
+    84% {opacity:0.08;filter:saturate(0) brightness(2);transform:scaleY(0.4);}
+    92% {opacity:0.02;transform:scaleY(0.08);}
+    100%{opacity:0;transform:scaleY(0);clip-path:inset(50% 0 50% 0);}
+}
+.splash-sysid{display:flex;flex-direction:column;color:var(--green);font-size:13px;line-height:1.9;text-shadow:0 0 3px rgba(0,255,65,0.95),0 0 9px rgba(0,255,65,0.55),0 0 22px rgba(0,255,65,0.2);filter:brightness(1.05);}
+.splash-divider{color:var(--gdim);margin:18px 0;font-size:13px;text-shadow:0 0 4px rgba(0,179,44,0.5);opacity:0.5;}
+.splash-status{display:inline-grid;grid-template-columns:max-content max-content;column-gap:16px;row-gap:6px;color:var(--green);font-size:12px;text-shadow:0 0 3px rgba(0,255,65,0.95),0 0 9px rgba(0,255,65,0.55),0 0 22px rgba(0,255,65,0.2);filter:brightness(1.05);}
+.status-label{text-align:left;}
+.status-value{text-align:left;}
+.status-indicator.armed{color:#ff3030;text-shadow:0 0 8px rgba(255,48,48,1),0 0 20px rgba(255,48,48,0.7),0 0 40px rgba(255,48,48,0.3);}
+.status-indicator.active{color:var(--green);text-shadow:0 0 8px rgba(0,255,65,1),0 0 20px rgba(0,255,65,0.7),0 0 40px rgba(0,255,65,0.3);}
+.splash-prompt{color:var(--pink);font-size:24px;margin-top:6px;letter-spacing:1px;text-shadow:0 0 4px rgba(255,45,120,0.95),0 0 14px rgba(255,45,120,0.55),0 0 28px rgba(255,45,120,0.2);animation:splashBlink 1.3s step-end infinite;}
+@keyframes splashBlink{0%,100%{opacity:1}50%{opacity:0.15}}
+/* ── LOADING OVERLAY ── */
+.loading-overlay{
+    position:fixed;inset:0;background:#000;z-index:100;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;
+    opacity:1;transition:opacity 0.6s ease;
+}
+.loading-overlay.fade-out{opacity:0;pointer-events:none;}
+.loading-label{color:var(--gdim);font-size:11px;letter-spacing:2px;}
+.loading-bar-wrap{width:280px;height:2px;background:var(--gdark);overflow:hidden;}
+.loading-bar-fill{height:100%;background:var(--pink);width:0%;transition:width .3s;box-shadow:0 0 8px var(--pink);}
+.loading-detail{color:var(--gdark);font-size:10px;letter-spacing:1px;}
 </style>
 </head>
 <body>
+<!-- SPLASH SCREEN -->
+<div class="splash" id="splash">
+    <div class="splash-inner" id="splashInner">
+        <div class="splash-sysid">
+            <span>Resonance Calibration Utility v.06.06.06</span>
+        </div>
+        <div class="splash-divider">────────────────────────────────────</div>
+        <div class="splash-sysid">
+            <span style="color:var(--gdim);opacity:0.6;text-shadow:0 0 4px rgba(0,179,44,0.4);">Camera access required for neural uplink.</span>
+            <span style="color:var(--gdim);opacity:0.6;text-shadow:0 0 4px rgba(0,179,44,0.4);">Allow the popup once calibration sequence is initiated...</span>
+        </div>
+        <div class="splash-divider">────────────────────────────────────────────────────────────────────────</div>
+        <div class="splash-prompt">▶&nbsp; PRESS ANY KEY TO INITIATE CALIBRATION SEQUENCE &nbsp;◀</div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY — shown after splash, while camera + models initialise -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none;">
+    <div class="loading-label">LOADING CALIBRATION ENVIRONMENT</div>
+    <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loadingFill"></div></div>
+    <div class="loading-detail" id="loadingMsg">Loading hand tracking model…</div>
+</div>
+
 <div class="app">
 
-<header class="header">
-    <h1>ASCII // THEREMIN</h1>
+<div class="header-edge" id="headerEdge"></div>
+<header class="header" id="header">
+    <h1>ASCII // THEREMIN // FACE</h1>
     <div class="header-stats">
         <div class="hstat" id="hScoreStat">SCORE <span id="hScore">0</span></div>
         <div class="hstat">LEFT HAND <span id="hNote">—</span></div>
@@ -103,7 +222,8 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
     </div>
 </header>
 
-<div class="sidebar">
+<div class="sidebar-edge" id="sidebarEdge"></div>
+<div class="sidebar" id="sidebar">
 
     <!-- SYNTH PRESETS -->
     <div class="section">
@@ -289,6 +409,47 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
         </div>
     </div>
 
+    <!-- FACE OVERLAYS -->
+    <div class="section">
+        <div class="section-head open" data-target="s-face"><span>FACE OVERLAYS</span><span class="arrow">▶</span></div>
+        <div class="section-body open" id="s-face">
+            <div class="check-row">
+                <input type="checkbox" id="meshOn" checked>
+                <label for="meshOn">Face mesh</label>
+            </div>
+            <div class="ctrl" style="margin-top:4px;">
+                <label>Mesh opacity <span id="meshOpacityVal">1.00</span></label>
+                <input type="range" id="meshOpacity" min="0.05" max="1" step="0.05" value="1">
+            </div>
+            <div style="font-size:10px;color:var(--gdim);margin:6px 0 4px;">Mesh colour</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="meshColor" value="cyan" checked> Cyan</label>
+                <label><input type="radio" name="meshColor" value="pink"> Pink</label>
+                <label><input type="radio" name="meshColor" value="green"> Green</label>
+                <label><input type="radio" name="meshColor" value="white"> White</label>
+            </div>
+            <div class="check-row" style="margin-top:6px;">
+                <input type="checkbox" id="eyeGlowOn" checked>
+                <label for="eyeGlowOn">Eye glow</label>
+            </div>
+            <div style="font-size:10px;color:var(--gdim);margin:4px 0;">Eye colour</div>
+            <div class="radio-group" style="margin-bottom:8px;">
+                <label><input type="radio" name="eyeColor" value="demon" checked> Red</label>
+                <label><input type="radio" name="eyeColor" value="cyber"> Cyan</label>
+                <label><input type="radio" name="eyeColor" value="toxic"> Toxic green</label>
+                <label><input type="radio" name="eyeColor" value="void"> White</label>
+            </div>
+            <div class="ctrl">
+                <label>Eye glow size <span id="eyeGlowVal">10</span>px</label>
+                <input type="range" id="eyeGlow" min="10" max="80" value="10">
+            </div>
+            <div class="ctrl">
+                <label>Eye glow intensity <span id="eyeIntensityVal">0.65</span></label>
+                <input type="range" id="eyeIntensity" min="0.1" max="1" step="0.05" value="0.65">
+            </div>
+        </div>
+    </div>
+
     <div class="section">
         <div class="section-head" data-target="s-res"><span>RESOLUTION</span><span class="arrow">▶</span></div>
         <div class="section-body" id="s-res">
@@ -464,13 +625,10 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 
 <div class="main">
     <div class="preview-wrap" id="previewWrap">
-        <div class="no-camera" id="noCamera">
-            <div class="icon">◉</div>
-            <div id="loadingMsg">Loading hand tracking model…</div>
-            <div class="loading-bar"><div class="loading-fill" id="loadingFill"></div></div>
-        </div>
+        <!-- noCamera placeholder removed — loading overlay handles this state -->
         <canvas id="asciiCanvas"></canvas>
         <canvas id="asciiBloom"></canvas>
+        <canvas id="faceCanvas"></canvas>
         <canvas id="trackingCanvas"></canvas>
     </div>
 </div>
@@ -482,7 +640,7 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 
 </div>
 <script type="module">
-import { HandLandmarker, FilesetResolver }
+import { HandLandmarker, FaceLandmarker, FilesetResolver }
     from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3';
 
 // ─────────────────────────────────────────────────────────────────
@@ -520,6 +678,57 @@ const HAND_CONNECTIONS = [
     [0,17],[13,17],[17,18],[18,19],[19,20],
 ];
 
+// ── Face overlay constants ────────────────────────────────────────
+const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+const EYE_PALETTES = {
+    demon: { iris:'#5a0000', inner:'#cc0000', glow:'#a80000' },
+    cyber: { iris:'#006688', inner:'#00ffcc', glow:'#00aaff' },
+    toxic: { iris:'#004400', inner:'#00ff41', glow:'#00ff41' },
+    void:  { iris:'#999999', inner:'#ffffff', glow:'#dddddd' },
+};
+const MESH_COLORS = { cyan:'#00ffcc', pink:'#ff2d78', green:'#00ff41', white:'#ffffff' };
+
+let faceLandmarker = null;
+let faceResults    = null;
+let _faceFrameSkip = 0;
+// Landmark smoothing
+let _faceLmsPrev = null, _faceLmsCurr = null, _faceDetectTs = 0, _facePrevTs = 0;
+// Face presence state machine
+let _faceState      = 'hidden';  // 'hidden' | 'glitch-in' | 'visible' | 'glitch-out'
+let _faceLastSeenTs = 0;         // timestamp when face was last detected
+const FACE_LOSE_DELAY = 100;     // ms before triggering glitch-out
+
+function _triggerFaceGlitchIn() {
+    _faceState = 'glitch-in';
+    const fc = document.getElementById('faceCanvas');
+    fc.style.display  = 'block';
+    fc.style.animation = '';       // no animation yet — let the render loop paint content first
+    fc.style.opacity  = '1';
+
+    // Wait two frames so renderFaceOverlays has drawn the mesh/eyes to the canvas
+    // before the CSS animation starts distorting it. This guarantees there is
+    // actual visible content for the animation to work with.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (_faceState !== 'glitch-in') return; // state changed during the wait — abort
+        fc.style.animation = 'none';
+        void fc.offsetWidth;
+        fc.style.animation = 'faceGlitchIn 0.62s linear forwards';
+        const _t = setTimeout(() => { if (_faceState === 'glitch-in') { fc.style.animation = ''; _faceState = 'visible'; } }, 800);
+        fc.addEventListener('animationend', () => { clearTimeout(_t); fc.style.animation = ''; _faceState = 'visible'; }, { once: true });
+    }));
+}
+
+function _triggerFaceGlitchOut() {
+    _faceState = 'glitch-out';
+    const fc = document.getElementById('faceCanvas');
+    fc.style.animation = 'none';
+    void fc.offsetWidth;
+    fc.style.animation = 'faceGlitchOut 0.55s linear forwards';
+    // Fallback: if animationend never fires, hide after 700ms
+    const _t = setTimeout(() => { if (_faceState === 'glitch-out') { fc.style.animation = ''; fc.style.display = 'none'; _faceState = 'hidden'; } }, 700);
+    fc.addEventListener('animationend', () => { clearTimeout(_t); fc.style.animation = ''; fc.style.display = 'none'; _faceState = 'hidden'; }, { once: true });
+}
+
 // ─────────────────────────────────────────────────────────────────
 // STATE  (visual properties match ascii-webcam exactly)
 // ─────────────────────────────────────────────────────────────────
@@ -554,6 +763,9 @@ const state = {
     driveType: 'soft', driveAmount: 15,
     // master
     masterVol: 0.7, reverb: 0.3,
+    // face overlays
+    meshOn: true, meshOpacity: 1.0, meshColor: 'cyan',
+    eyeGlowOn: true, eyeColor: 'demon', eyeGlow: 10, eyeIntensity: 0.65,
     // game (theremin-specific)
     showGameUI:    false,
     rightHandMode: 'volume',   // 'volume' | 'filter'
@@ -907,17 +1119,30 @@ async function initMediaPipe() {
             'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
         );
         setLoadingProgress(60);
-        handLandmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: {
-                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-                delegate: 'GPU',
-            },
-            runningMode: 'VIDEO',
-            numHands: 2,
-        });
-        setLoadingProgress(100);
+        // Load both models in parallel — they share the same WASM binary
+        [handLandmarker, faceLandmarker] = await Promise.all([
+            HandLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+                    delegate: 'GPU',
+                },
+                runningMode: 'VIDEO',
+                numHands: 2,
+            }),
+            FaceLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+                    delegate: 'GPU',
+                },
+                runningMode: 'VIDEO',
+                numFaces: 1,
+                outputFaceBlendshapes: false,
+                outputFacialTransformationMatrixes: false,
+            }),
+        ]);
+        setLoadingProgress(75);
         mpReady = true;
-        document.getElementById('loadingMsg').textContent = 'Ready — click [ START ] to begin';
+        document.getElementById('loadingMsg').textContent = 'Models ready — awaiting camera…';
         document.getElementById('btnStart').disabled = false;
         setStatus('Hand tracking ready');
     } catch (err) {
@@ -926,8 +1151,31 @@ async function initMediaPipe() {
     }
 }
 
+// Loading bar — goal/display split so the bar always looks live.
+// setLoadingProgress updates the goal; the display animates toward it
+// independently so there's always visible movement.
+let _loadGoal = 0;
+let _loadVal  = 0;
+let _loadTick = null;
+
 function setLoadingProgress(pct) {
-    document.getElementById('loadingFill').style.width = pct + '%';
+    _loadGoal = pct;
+}
+
+// Called when the overlay is actually shown — resets to 0 and starts animating.
+// This handles the case where models are already loaded before the splash is dismissed.
+function _startLoadingDisplay() {
+    _loadVal = 0;
+    if (_loadTick) clearInterval(_loadTick);
+    _loadTick = setInterval(() => {
+        if (_loadVal >= _loadGoal) return;
+        const gap = _loadGoal - _loadVal;
+        // Ease-out: fast when gap is large, slow as it approaches goal
+        _loadVal += Math.max(0.3, gap * 0.06);
+        if (_loadVal > _loadGoal) _loadVal = _loadGoal;
+        const el = document.getElementById('loadingFill');
+        if (el) el.style.width = _loadVal.toFixed(1) + '%';
+    }, 30);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -962,7 +1210,6 @@ async function startCamera(deviceId) {
         _rebuildSampleCanvas();
 
         running = true;
-        document.getElementById('noCamera').style.display   = 'none';
         document.getElementById('asciiCanvas').style.display = 'block';
         document.getElementById('trackingCanvas').style.display = 'block';
         document.getElementById('btnStart').textContent = '[ STOP ]';
@@ -973,6 +1220,14 @@ async function startCamera(deviceId) {
         game.lastTs = performance.now();
         pickNextNote();
         setStatus('Running');
+        // Camera live — complete the loading bar and fade the overlay out
+        setLoadingProgress(100);
+        document.getElementById('loadingMsg').textContent = 'Neural uplink established';
+        const _overlay = document.getElementById('loadingOverlay');
+        setTimeout(() => {
+            _overlay.classList.add('fade-out');
+            setTimeout(() => { _overlay.style.display = 'none'; }, 650);
+        }, 400);
         resizeCanvas();
         _fpsLast = performance.now(); _fpsFrames = 0;
         animFrame = requestAnimationFrame(renderLoop);
@@ -995,6 +1250,10 @@ function stopCamera() {
     document.getElementById('loadingMsg').textContent    = 'Ready — click [ START ] to begin';
     document.getElementById('asciiCanvas').style.display = 'none';
     document.getElementById('trackingCanvas').style.display = 'none';
+    // Reset face state so glitch-in fires again on next camera start
+    const _fc = document.getElementById('faceCanvas');
+    _fc.style.display = 'none'; _fc.style.animation = '';
+    _faceState = 'hidden'; _faceLmsCurr = null; _faceLastSeenTs = 0;
     document.getElementById('btnStart').textContent     = '[ START ]';
     document.getElementById('btnStart').classList.remove('active');
     document.getElementById('hFps').textContent         = '— fps';
@@ -1043,16 +1302,16 @@ function resizeCanvas() {
     if (!running) return;
     const wrap   = document.getElementById('previewWrap');
     const canvas = document.getElementById('asciiCanvas');
-    const track  = document.getElementById('trackingCanvas');
-    const bloom  = document.getElementById('asciiBloom');
+    const track = document.getElementById('trackingCanvas');
+    const bloom = document.getElementById('asciiBloom');
+    const fc    = document.getElementById('faceCanvas');
     const { w: cw, h: ch } = _charCells();
     const natW = state.cols * cw, natH = state.rows * ch;
     const maxW = wrap.clientWidth - 8, maxH = wrap.clientHeight - 8;
     const scale = Math.min(maxW / natW, maxH / natH);
     canvas.width = Math.round(natW * scale); canvas.height = Math.round(natH * scale);
     canvas._previewScale = scale;
-    // Sync overlay canvases to same pixel dimensions and CSS position
-    [track, bloom].forEach(c => {
+    [track, bloom, fc].forEach(c => {
         c.width  = canvas.width; c.height = canvas.height;
         c.style.left   = canvas.offsetLeft   + 'px';
         c.style.top    = canvas.offsetTop    + 'px';
@@ -1127,10 +1386,21 @@ function renderLoop(ts) {
     if (!videoEl || videoEl.readyState < 2) return;
     tickFPS(ts);
 
-    // ── Hand tracking ──
+    // ── Hand tracking — every frame for responsiveness ──
     if (mpReady && handLandmarker) {
+        try { handResults = handLandmarker.detectForVideo(videoEl, ts); } catch(_) {}
+    }
+    // ── Face tracking — every 2nd frame, with inter-frame interpolation ──
+    if (mpReady && faceLandmarker && ++_faceFrameSkip % 2 === 0) {
         try {
-            handResults = handLandmarker.detectForVideo(videoEl, ts);
+            faceResults = faceLandmarker.detectForVideo(videoEl, ts);
+            const detected = faceResults?.faceLandmarks?.[0];
+            if (detected) {
+                _faceLmsPrev = _faceLmsCurr;
+                _facePrevTs  = _faceDetectTs;
+                _faceLmsCurr = detected;
+                _faceDetectTs = ts;
+            }
         } catch(_) {}
     }
 
@@ -1180,6 +1450,7 @@ function renderLoop(ts) {
 
     updateGame(ts);
     renderASCII();
+    renderFaceOverlays(); // drawn on ASCII canvas before bloom so glow is included
     renderOverlay(leftHand, rightHand, ts);
     renderBloom();
 }
@@ -1274,6 +1545,103 @@ function renderASCII() {
                                             canvas.width/2,canvas.height/2,canvas.height*0.75);
         g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.65)');
         ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// FACE OVERLAYS  — mesh + eye glow drawn on the ASCII canvas
+// ─────────────────────────────────────────────────────────────────
+function renderFaceOverlays() {
+    const hasFace = !!faceResults?.faceLandmarks?.[0];
+    const now     = performance.now();
+
+    // ── State machine ──────────────────────────────────────────────
+    if (hasFace) {
+        _faceLastSeenTs = now;
+        if      (_faceState === 'hidden')     _triggerFaceGlitchIn();
+        else if (_faceState === 'glitch-out') _triggerFaceGlitchIn(); // face returned mid-exit
+    } else {
+        // Also check 'glitch-in' — face lost during the appear animation must still
+        // trigger glitch-out, otherwise state gets stuck and canvas stays invisible.
+        if ((_faceState === 'visible' || _faceState === 'glitch-in') &&
+             now - _faceLastSeenTs > FACE_LOSE_DELAY) {
+            _triggerFaceGlitchOut();
+        }
+    }
+
+    // Only draw when visible or mid-transition (canvas handles the rest via CSS animation)
+    if (_faceState === 'hidden' || !_faceLmsCurr || _faceLmsCurr.length < 468) return;
+
+    // ── Landmark interpolation ─────────────────────────────────────
+    let lms = _faceLmsCurr;
+    if (_faceLmsPrev && _faceDetectTs > _facePrevTs) {
+        const interval = _faceDetectTs - _facePrevTs;
+        const t = Math.min(1.0, (now - _faceDetectTs) / interval);
+        if (t < 1.0) {
+            lms = _faceLmsCurr.map((curr, i) => {
+                const prev = _faceLmsPrev[i];
+                return { x: prev.x + (curr.x - prev.x) * t, y: prev.y + (curr.y - prev.y) * t };
+            });
+        }
+    }
+
+    // ── Draw onto dedicated face canvas (CSS glitch animation targets this) ──
+    const asciiCanvas = document.getElementById('asciiCanvas');
+    const fc  = document.getElementById('faceCanvas');
+    const W   = asciiCanvas.width, H = asciiCanvas.height;
+    const ctx = fc.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    const lx = (lm) => (state.mirror ? 1 - lm.x : lm.x) * W;
+    const ly = (lm) => lm.y * H;
+    const p  = (i)  => ({ x: lx(lms[i]), y: ly(lms[i]) });
+
+    if (state.meshOn) {
+        ctx.save();
+        ctx.globalAlpha = state.meshOpacity;
+        ctx.strokeStyle = MESH_COLORS[state.meshColor] || '#00ffcc';
+        ctx.lineWidth   = 0.5;
+        const threshold = W * 0.1;
+        ctx.beginPath();
+        for (let i = 0; i < lms.length - 3; i += 3) {
+            const ax = lx(lms[i]),   ay = ly(lms[i]);
+            const bx = lx(lms[i+1]), by = ly(lms[i+1]);
+            if (Math.hypot(ax - bx, ay - by) < threshold) { ctx.moveTo(ax, ay); ctx.lineTo(bx, by); }
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    if (state.eyeGlowOn) {
+        const pal   = EYE_PALETTES[state.eyeColor] || EYE_PALETTES.demon;
+        const scale = asciiCanvas._previewScale || 1;
+        const glowR = state.eyeGlow * scale;
+        const alpha = state.eyeIntensity;
+        const lEyeOuter = p(33), lEyeInner = p(133);
+        const rEyeOuter = p(362), rEyeInner = p(263);
+        const lIris = lms.length >= 478 ? p(468) : { x:(lEyeOuter.x+lEyeInner.x)*0.5, y:(lEyeOuter.y+lEyeInner.y)*0.5 };
+        const rIris = lms.length >= 478 ? p(473) : { x:(rEyeOuter.x+rEyeInner.x)*0.5, y:(rEyeOuter.y+rEyeInner.y)*0.5 };
+        const toRgba = (hex, a) => { const [r,g,b] = hexToRgb(hex); return `rgba(${r},${g},${b},${a.toFixed(3)})`; };
+        [[lIris, Math.hypot(lEyeOuter.x-lEyeInner.x, lEyeOuter.y-lEyeInner.y)],
+         [rIris, Math.hypot(rEyeOuter.x-rEyeInner.x, rEyeOuter.y-rEyeInner.y)]
+        ].forEach(([c, ew]) => {
+            const ir = ew * 0.55, halo = Math.max(ir, glowR);
+            const g1 = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, halo);
+            g1.addColorStop(0,    toRgba(pal.inner, alpha));
+            g1.addColorStop(0.25, toRgba(pal.iris,  alpha * 0.9));
+            g1.addColorStop(0.55, toRgba(pal.glow,  alpha * 0.5));
+            g1.addColorStop(1.0,  toRgba(pal.glow,  0));
+            ctx.fillStyle = g1;
+            ctx.beginPath(); ctx.ellipse(c.x, c.y, halo, halo, 0, 0, Math.PI * 2); ctx.fill();
+            const coreR = ir * 0.55;
+            const g2 = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, coreR);
+            g2.addColorStop(0,   toRgba(pal.inner, alpha * 0.5));
+            g2.addColorStop(0.3, toRgba(pal.inner, alpha));
+            g2.addColorStop(1.0, toRgba(pal.inner, 0));
+            ctx.fillStyle = g2;
+            ctx.beginPath(); ctx.ellipse(c.x, c.y, coreR, coreR, 0, 0, Math.PI * 2); ctx.fill();
+        });
     }
 }
 
@@ -1653,6 +2021,9 @@ function _getSynthState() {
         scanlines:state.scanlines, vignette:state.vignette,
         // camera
         mirror:state.mirror,
+        // face overlays (theremin-face only — ignored when loaded in theremin)
+        meshOn:state.meshOn, meshOpacity:state.meshOpacity, meshColor:state.meshColor,
+        eyeGlowOn:state.eyeGlowOn, eyeColor:state.eyeColor, eyeGlow:state.eyeGlow, eyeIntensity:state.eyeIntensity,
     };
 }
 
@@ -1761,6 +2132,14 @@ function applySynthPreset(s) {
     if (s.vignette   != null) { state.vignette   = s.vignette;   setCb('vignette',  s.vignette); }
     // ── Camera ──
     if (s.mirror != null) { state.mirror = s.mirror; setCb('mirror', s.mirror); }
+    // Face overlay settings — present in theremin-face presets, absent in theremin presets (safely ignored)
+    if (s.meshOn      != null) { state.meshOn      = s.meshOn;       setCb('meshOn',      s.meshOn); }
+    if (s.meshOpacity != null) { state.meshOpacity = s.meshOpacity;  set('meshOpacity',   s.meshOpacity); setDisp('meshOpacityVal', s.meshOpacity, 2); }
+    if (s.meshColor)            { state.meshColor   = s.meshColor;    setRadio('meshColor',  s.meshColor); }
+    if (s.eyeGlowOn   != null) { state.eyeGlowOn   = s.eyeGlowOn;   setCb('eyeGlowOn',   s.eyeGlowOn); }
+    if (s.eyeColor)             { state.eyeColor    = s.eyeColor;    setRadio('eyeColor',   s.eyeColor); }
+    if (s.eyeGlow     != null) { state.eyeGlow     = s.eyeGlow;      set('eyeGlow',       s.eyeGlow); setDisp('eyeGlowVal', s.eyeGlow); }
+    if (s.eyeIntensity!= null) { state.eyeIntensity = s.eyeIntensity; set('eyeIntensity',  s.eyeIntensity); setDisp('eyeIntensityVal', s.eyeIntensity, 2); }
 
     // Apply to live audio if running
     if (!audioCtx) return;
@@ -1800,13 +2179,43 @@ function renderPresetList() {
 }
 
 function init() {
-    document.getElementById('btnStart').disabled = true; // re-enabled after MediaPipe loads
+    document.getElementById('btnStart').disabled = true;
 
+    // ── Splash dismissal — any keypress or click on splash ───────────
+    let _splashDismissed = false;
+    const dismissSplash = async () => {
+        if (_splashDismissed) return;
+        _splashDismissed = true;
+
+        // Play glitch-out animation
+        const inner = document.getElementById('splashInner');
+        inner.classList.add('glitch-out');
+
+        // After animation: hide splash, show loading overlay, start camera
+        setTimeout(async () => {
+            document.getElementById('splash').style.display = 'none';
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            _startLoadingDisplay(); // begin bar animation from 0% toward current goal
+            // User gesture is still active — safe to start audio + camera
+            initAudio();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            startCamera();
+        }, 580);
+    };
+
+    document.addEventListener('keydown', (e) => {
+        if (document.getElementById('splash').style.display === 'none') return; // splash already gone
+        if (['Shift','Control','Alt','Meta','CapsLock','Tab'].includes(e.key)) return;
+        dismissSplash();
+    });
+    document.getElementById('splash').addEventListener('click', dismissSplash);
+
+    // Header btnStart still works as a stop/restart after the splash is dismissed
     document.getElementById('btnStart').addEventListener('click', async () => {
+        if (!_splashDismissed) { dismissSplash(); return; }
         if (running) {
             stopCamera();
         } else {
-            // Audio context must start from a user gesture
             initAudio();
             if (audioCtx.state === 'suspended') await audioCtx.resume();
             startCamera();
@@ -1820,6 +2229,15 @@ function init() {
     document.addEventListener('fullscreenchange', () => setTimeout(resizeCanvas, 80));
 
     document.getElementById('mirror').addEventListener('change', e => { state.mirror = e.target.checked; });
+
+    // Face overlay controls
+    document.getElementById('meshOn').addEventListener('change', e => { state.meshOn = e.target.checked; });
+    document.getElementById('meshOpacity').addEventListener('input', e => { state.meshOpacity = +e.target.value; document.getElementById('meshOpacityVal').textContent = (+e.target.value).toFixed(2); });
+    document.querySelectorAll('[name=meshColor]').forEach(r => r.addEventListener('change', () => { state.meshColor = document.querySelector('[name=meshColor]:checked').value; }));
+    document.getElementById('eyeGlowOn').addEventListener('change', e => { state.eyeGlowOn = e.target.checked; });
+    document.querySelectorAll('[name=eyeColor]').forEach(r => r.addEventListener('change', () => { state.eyeColor = document.querySelector('[name=eyeColor]:checked').value; }));
+    document.getElementById('eyeGlow').addEventListener('input', e => { state.eyeGlow = +e.target.value; document.getElementById('eyeGlowVal').textContent = e.target.value; });
+    document.getElementById('eyeIntensity').addEventListener('input', e => { state.eyeIntensity = +e.target.value; document.getElementById('eyeIntensityVal').textContent = (+e.target.value).toFixed(2); });
 
     document.getElementById('cameraSource').addEventListener('change', e => {
         if (running) startCamera(e.target.value);
@@ -1920,11 +2338,10 @@ function init() {
 
     // ── Preset system ───────────────────────────────────────────────
     renderPresetList();
-    // Restore last active state if available, otherwise fall back to Cyber Lead
-    const _lastState = localStorage.getItem(ACTIVE_STATE_KEY);
-    if (_lastState) {
-        try { applySynthPreset(JSON.parse(_lastState)); }
-        catch (_) { applySynthPreset(FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s); }
+    // Load bigfuntime2 as the default on startup, falling back to Cyber Lead if not found
+    const _defaultPreset = getUserPresets().find(p => p.name === 'bigfuntime2');
+    if (_defaultPreset) {
+        applySynthPreset(_defaultPreset.s);
     } else {
         applySynthPreset(FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s);
     }
@@ -2028,6 +2445,30 @@ function init() {
     });
 
     window.addEventListener('resize', () => { _rulerCache = null; resizeCanvas(); });
+
+    // ── Slide-out sidebar (left edge) and header (top edge) on hover ──
+    const sidebar     = document.getElementById('sidebar');
+    const sidebarEdge = document.getElementById('sidebarEdge');
+    const header      = document.getElementById('header');
+    const headerEdge  = document.getElementById('headerEdge');
+    let _sidebarHideTimer = null;
+    let _headerHideTimer  = null;
+
+    const openSidebar  = () => { clearTimeout(_sidebarHideTimer); sidebar.classList.add('sidebar-open'); sidebarEdge.classList.add('hidden'); };
+    const closeSidebar = () => { _sidebarHideTimer = setTimeout(() => { sidebar.classList.remove('sidebar-open'); sidebarEdge.classList.remove('hidden'); }, 320); };
+    const openHeader   = () => { clearTimeout(_headerHideTimer);  header.classList.add('header-open');   headerEdge.classList.add('hidden'); };
+    const closeHeader  = () => { _headerHideTimer  = setTimeout(() => { header.classList.remove('header-open');   headerEdge.classList.remove('hidden'); }, 320); };
+
+    // Single mousemove handler checks both edges
+    document.addEventListener('mousemove', (e) => {
+        if (e.clientX < 12) openSidebar();
+        if (e.clientY < 12) openHeader();
+    });
+
+    sidebar.addEventListener('mouseenter', () => clearTimeout(_sidebarHideTimer));
+    sidebar.addEventListener('mouseleave', closeSidebar);
+    header.addEventListener('mouseenter',  () => clearTimeout(_headerHideTimer));
+    header.addEventListener('mouseleave',  closeHeader);
 
     if (!navigator.mediaDevices?.getUserMedia) {
         setStatus('Camera not available — requires HTTPS');

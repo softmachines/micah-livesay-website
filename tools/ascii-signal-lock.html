@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII // SIGNAL LOCK</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+    --green:#00ff41;--gdim:#00b32c;--gdark:#003d0f;
+    --pink:#ff2d78;--cyan:#00ffcc;--bg:#010802;--panel:#060e07;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{min-height:100%;background:var(--bg);font-family:'Share Tech Mono',monospace;color:var(--green);}
+h1{
+    text-align:center;padding:28px 0 20px;font-size:14px;letter-spacing:4px;
+    color:var(--pink);text-shadow:0 0 12px rgba(255,45,120,.5);
+    border-bottom:1px solid var(--gdark);
+}
+h1 span{color:var(--gdark);}
+.grid{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    gap:1px;background:var(--gdark);border:1px solid var(--gdark);margin:24px;
+}
+.card{
+    background:var(--panel);padding:28px 20px 20px;
+    display:flex;flex-direction:column;align-items:center;gap:14px;min-height:260px;
+}
+.card-title{font-size:11px;letter-spacing:2px;color:var(--gdim);text-align:center;}
+.anim{
+    font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.65;
+    text-align:center;white-space:pre;flex:1;display:flex;
+    align-items:center;justify-content:center;flex-direction:column;
+}
+.status{font-size:10px;letter-spacing:2px;color:var(--gdark);text-align:center;transition:color .3s;}
+.status.active{color:var(--gdim);}
+.status.locked{color:var(--cyan);text-shadow:0 0 6px rgba(0,255,204,.5);}
+.status.resonating{color:var(--pink);text-shadow:0 0 6px rgba(255,45,120,.5);}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:500px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<h1>ASCII <span>//</span> SIGNAL LOCK</h1>
+
+<div class="grid">
+
+    <div class="card">
+        <div class="card-title">FREQUENCY SWEEP</div>
+        <div class="anim" id="a1"></div>
+        <div class="status" id="s1">INITIALISING</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">PARTICLE CONVERGENCE</div>
+        <div class="anim" id="a2"></div>
+        <div class="status" id="s2">INITIALISING</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">WAVEFORM SYNC</div>
+        <div class="anim" id="a3"></div>
+        <div class="status" id="s3">INITIALISING</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">SPECTRUM PEAK</div>
+        <div class="anim" id="a4"></div>
+        <div class="status" id="s4">INITIALISING</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">PHASE RING</div>
+        <div class="anim" id="a5"></div>
+        <div class="status" id="s5">INITIALISING</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">CARRIER SCAN</div>
+        <div class="anim" id="a6"></div>
+        <div class="status" id="s6">INITIALISING</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">ECHO RANGING</div>
+        <div class="anim" id="a7"></div>
+        <div class="status" id="s7">INITIALISING</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">NODE SYNCHRONY</div>
+        <div class="anim" id="a8"></div>
+        <div class="status" id="s8">INITIALISING</div>
+    </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ── Shared helpers ────────────────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function ease(t){ return t < .5 ? 2*t*t : -1+(4-2*t)*t; }
+function rnd(a,b){ return a + Math.random()*(b-a); }
+function rndInt(a,b){ return Math.floor(rnd(a,b)); }
+
+// Phase helper: returns { name, pct } for a cyclic animation
+// cycle: total frames, lock: frame lock starts, res: frame resonance starts
+function getPhase(t, cycle=220, lock=130, res=170) {
+    const p = ((t % cycle) + cycle) % cycle;
+    if (p < lock)  return { name:'search',  pct: p / lock };
+    if (p < res)   return { name:'lock',    pct: (p-lock)/(res-lock) };
+    return               { name:'resonate', pct: (p-res)/(cycle-res) };
+}
+
+function setStatus(el, ph) {
+    el.className = 'status';
+    if      (ph === 'search')  { el.textContent = 'SEARCHING SPECTRUM ···'; el.classList.add('active'); }
+    else if (ph === 'lock')    { el.textContent = '◎ ACQUIRING LOCK ···';   el.classList.add('active'); }
+    else                       { el.textContent = '◉ RESONANCE LOCKED';     el.classList.add('resonating'); }
+}
+
+// ── 1. FREQUENCY SWEEP ───────────────────────────────────────────
+// A cursor scans across a noisy spectrum; the target frequency brightens,
+// then the whole bar resonates as a standing wave.
+(function() {
+    const el = document.getElementById('a1');
+    const st = document.getElementById('s1');
+    const W  = 24;
+    const TARGET = 15; // target position in the spectrum
+    let t = 0, seed = 0;
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 230, 140, 180);
+        setStatus(st, name);
+
+        let freqLine = '', levelLine = '', cursor = '';
+        const ep = ease(pct);
+
+        if (name === 'search') {
+            // Cursor sweeps across, spectrum shows noise
+            const cursorPos = Math.floor((pct * 1.6 % 1) * W);
+            seed++;
+            for (let i = 0; i < W; i++) {
+                const noise = Math.sin(seed * 0.17 + i * 0.8) * 0.5 + 0.5;
+                const near  = Math.max(0, 1 - Math.abs(i - cursorPos) / 3);
+                const h     = Math.floor((noise * 0.4 + near * 0.6) * 7);
+                freqLine += ' ▁▂▃▄▅▆▇'[h];
+            }
+            cursor = ' '.repeat(cursorPos) + '↑';
+            levelLine = 'FREQ: ' + (100 + cursorPos * 12) + ' Hz';
+        } else if (name === 'lock') {
+            // Cursor slows to target, signal builds there
+            const cursorPos = Math.round(lerp(W - 1, TARGET, ep));
+            for (let i = 0; i < W; i++) {
+                const noise  = Math.sin(t * 0.2 + i * 0.9) * 0.3 + 0.3;
+                const signal = Math.max(0, 1 - Math.abs(i - TARGET) / (4 * (1 - ep * 0.7)));
+                const h      = Math.floor(clamp(noise + signal * ep * 5, 0, 7));
+                freqLine += ' ▁▂▃▄▅▆▇'[h];
+            }
+            cursor    = ' '.repeat(cursorPos) + (ep > 0.6 ? '◎' : '↑');
+            levelLine = 'FREQ: ' + (100 + cursorPos * 12) + ' Hz  ◎';
+        } else {
+            // Standing wave at target frequency
+            const phase = t * 0.25;
+            for (let i = 0; i < W; i++) {
+                const d     = Math.abs(i - TARGET);
+                const env   = Math.max(0, 1 - d / 5);
+                const wave  = Math.sin(phase - d * 0.8) * env;
+                const h     = Math.floor((wave * 0.5 + 0.5) * 7);
+                freqLine += ' ▁▂▃▄▅▆▇'[h];
+            }
+            cursor    = ' '.repeat(TARGET) + (Math.floor(t / 3) % 2 ? '◉' : '◎');
+            levelLine = 'FREQ: ' + (100 + TARGET * 12) + ' Hz  ◉';
+        }
+
+        el.textContent =
+            '┌' + '─'.repeat(W) + '┐\n' +
+            '│' + freqLine      + '│\n' +
+            '└' + '─'.repeat(W) + '┘\n' +
+            ' ' + cursor + '\n' +
+            levelLine;
+    }
+    setInterval(tick, 55);  tick();
+})();
+
+// ── 2. PARTICLE CONVERGENCE ──────────────────────────────────────
+// Scattered particles wander randomly, then are pulled toward a centre
+// point, arriving and pulsing as a bright cluster.
+(function() {
+    const el = document.getElementById('a2');
+    const st = document.getElementById('s2');
+    const W = 17, H = 9;
+    const CX = 8, CY = 4;
+    const N  = 14;
+    let t = 0;
+
+    // Particles: each has a home (random) and a locked position (near centre)
+    const particles = Array(N).fill(0).map(() => ({
+        hx: rnd(0, W-1), hy: rnd(0, H-1),
+        vx: rnd(-0.1, 0.1), vy: rnd(-0.05, 0.05),
+        ox: rnd(-1, 1), oy: rnd(-0.5, 0.5), // offset from centre when locked
+    }));
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 240, 140, 185);
+        setStatus(st, name);
+        const ep  = ease(pct);
+        const grid = Array(H).fill(null).map(() => Array(W).fill(' '));
+
+        const pulse = Math.sin(t * 0.35) * 0.5 + 0.5;
+
+        for (const p of particles) {
+            let x, y;
+            if (name === 'search') {
+                // Random wander
+                p.hx = clamp(p.hx + p.vx + (Math.random()-0.5)*0.3, 0, W-1);
+                p.hy = clamp(p.hy + p.vy + (Math.random()-0.5)*0.2, 0, H-1);
+                x = Math.round(p.hx); y = Math.round(p.hy);
+                const ch = ['·','∘','○'][Math.floor(Math.random()*3)];
+                if (x>=0&&x<W&&y>=0&&y<H) grid[y][x] = ch;
+            } else if (name === 'lock') {
+                // Converging
+                const tx = CX + p.ox * (1-ep), ty = CY + p.oy * (1-ep);
+                p.hx = lerp(p.hx, tx, 0.08);
+                p.hy = lerp(p.hy, ty, 0.08);
+                x = Math.round(p.hx); y = Math.round(p.hy);
+                const ch = ep > 0.5 ? '◎' : '○';
+                if (x>=0&&x<W&&y>=0&&y<H) grid[y][x] = ch;
+            } else {
+                // Locked cluster, pulsing
+                const jitter = (1 - ep) * 0.4;
+                x = Math.round(CX + p.ox * 0.6 + (Math.random()-0.5)*jitter);
+                y = Math.round(CY + p.oy * 0.5 + (Math.random()-0.5)*jitter);
+                const ch = pulse > 0.7 ? '●' : '◎';
+                if (x>=0&&x<W&&y>=0&&y<H) grid[y][x] = ch;
+            }
+        }
+        // Centre marker
+        const cm = name==='resonate' ? (pulse>0.5?'◉':'◎') : (name==='lock'&&ep>0.6?'◎':'+');
+        grid[CY][CX] = cm;
+
+        el.textContent = grid.map(r=>r.join('')).join('\n');
+    }
+    setInterval(tick, 55);  tick();
+})();
+
+// ── 3. WAVEFORM SYNC ─────────────────────────────────────────────
+// Two waveforms: a stable TARGET and a noisy SOURCE. SOURCE gradually
+// morphs toward TARGET; when matched both waveforms pulse as one.
+(function() {
+    const el = document.getElementById('a3');
+    const st = document.getElementById('s3');
+    const W  = 22;
+    const HC = ' ▁▂▃▄▅▆▇█';
+    let t = 0;
+
+    function waveVal(i, noise, phase, noiseAmt) {
+        const clean = Math.sin(phase + i * 0.45) * 0.5 + 0.5;
+        const noisy = noise[i % noise.length] * noiseAmt;
+        return clamp(clean + noisy - noiseAmt * 0.5, 0, 1);
+    }
+
+    const preNoise = Array(W).fill(0).map(()=>Math.random());
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 230, 140, 185);
+        setStatus(st, name);
+        const ep    = ease(pct);
+        const phase = t * 0.12;
+
+        let target = '', source = '', diff = '';
+
+        for (let i = 0; i < W; i++) {
+            const tgt = Math.sin(phase + i * 0.45) * 0.5 + 0.5;
+
+            let srcVal;
+            if (name === 'search') {
+                // Source is noisy — barely correlated
+                srcVal = waveVal(i, preNoise, phase * 0.7 + 1.5, 0.6);
+            } else if (name === 'lock') {
+                // Source morphing toward target
+                srcVal = lerp(waveVal(i, preNoise, phase * 0.7 + 1.5, 0.6), tgt, ep);
+            } else {
+                // Fully locked — perfect match, slight pulse glow
+                const pulse = Math.sin(t * 0.3) * 0.08;
+                srcVal = clamp(tgt + pulse, 0, 1);
+            }
+
+            const tIdx = Math.floor(tgt    * (HC.length-1));
+            const sIdx = Math.floor(srcVal * (HC.length-1));
+            target += HC[tIdx];
+            source += HC[sIdx];
+
+            const match = 1 - Math.abs(tgt - srcVal);
+            diff += match > 0.85 ? '│' : match > 0.5 ? ':' : '·';
+        }
+
+        const label = name==='resonate' ? '◉ PHASE MATCH' : name==='lock' ? '◎ ALIGNING···' : '  SEARCHING··';
+        el.textContent =
+            'TGT ▐' + target + '▌\n' +
+            '    ─' + diff   + '─\n' +
+            'SRC ▐' + source + '▌\n\n' +
+            label;
+    }
+    setInterval(tick, 50);  tick();
+})();
+
+// ── 4. SPECTRUM PEAK ─────────────────────────────────────────────
+// A noisy spectrum gradually develops a dominant peak that sharpens
+// into a single resonant frequency spike.
+(function() {
+    const el = document.getElementById('a4');
+    const st = document.getElementById('s4');
+    const W  = 22;
+    const PEAK = 11;
+    const ROWS = 6;
+    let t = 0;
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 220, 130, 175);
+        setStatus(st, name);
+        const ep = ease(pct);
+
+        const cols = [];
+        for (let i = 0; i < W; i++) {
+            const d       = Math.abs(i - PEAK);
+            const noise   = Math.abs(Math.sin(t*0.11 + i*1.3)) * 0.5 +
+                            Math.abs(Math.sin(t*0.07 + i*0.7)) * 0.3;
+            let signal = 0;
+            if (name === 'lock') {
+                // Gaussian peak emerging
+                signal = Math.exp(-d * d / (8 * (1 - ep * 0.85))) * ep * 1.5;
+            } else if (name === 'resonate') {
+                // Sharp spike, pulsing
+                const pulse = Math.sin(t * 0.3) * 0.2 + 0.8;
+                signal = Math.exp(-d * d / 1.5) * pulse;
+            }
+            cols.push(clamp(noise * (1 - ep * 0.8) + signal, 0, 1));
+        }
+
+        // Render as vertical bars
+        let rows = '';
+        for (let r = ROWS - 1; r >= 0; r--) {
+            const thresh = r / ROWS;
+            let row = '';
+            for (let i = 0; i < W; i++) {
+                const v = cols[i];
+                if      (v > thresh + 0.14) row += '█';
+                else if (v > thresh + 0.07) row += '▓';
+                else if (v > thresh)        row += '▒';
+                else                        row += '░';
+            }
+            rows += row + '\n';
+        }
+
+        const marker = ' '.repeat(PEAK) + (name==='resonate'?(Math.floor(t/4)%2?'◉':'◎'):'↑');
+        el.textContent = rows + marker;
+    }
+    setInterval(tick, 55);  tick();
+})();
+
+// ── 5. PHASE RING ─────────────────────────────────────────────────
+// A bright marker rotates rapidly around a dotted ring, decelerating
+// and halting at the lock point, then radiating pulses outward.
+(function() {
+    const el = document.getElementById('a5');
+    const st = document.getElementById('s5');
+    const W = 17, H = 8;
+    const CX = 8, CY = 3.8;
+    const RX = 6.5, RY = 2.8;
+    const LOCK_A = Math.PI * 0.3; // angle where signal is locked
+    let t = 0, markerAngle = 0;
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 230, 140, 182);
+        setStatus(st, name);
+        const ep   = ease(pct);
+        const grid = Array(H).fill(null).map(() => Array(W).fill(' '));
+
+        // Ring
+        for (let i = 0; i < 40; i++) {
+            const a = (i/40)*Math.PI*2;
+            const x = Math.round(CX + Math.cos(a) * RX);
+            const y = Math.round(CY + Math.sin(a) * RY);
+            if (x>=0&&x<W&&y>=0&&y<H) grid[y][x] = '·';
+        }
+        grid[Math.round(CY)][Math.round(CX)] = '╋';
+
+        // Marker movement
+        if (name === 'search') {
+            markerAngle += 0.18 - pct * 0.14; // gradually slows
+        } else if (name === 'lock') {
+            markerAngle = lerp(markerAngle, LOCK_A, 0.06);
+        } else {
+            markerAngle = LOCK_A;
+        }
+
+        // Draw marker
+        const mx = Math.round(CX + Math.cos(markerAngle) * RX);
+        const my = Math.round(CY + Math.sin(markerAngle) * RY);
+        if (mx>=0&&mx<W&&my>=0&&my<H)
+            grid[my][mx] = name==='resonate' ? (Math.floor(t/3)%2?'◉':'●') : '◎';
+
+        // Pulse rings on lock
+        if (name === 'resonate') {
+            const pulseR = (t % 20) / 20;
+            for (let i = 0; i < 20; i++) {
+                const a = (i/20)*Math.PI*2;
+                const px = Math.round(mx + Math.cos(a) * pulseR * 3.5);
+                const py = Math.round(my + Math.sin(a) * pulseR * 1.5);
+                if (px>=0&&px<W&&py>=0&&py<H&&grid[py][px]===' ')
+                    grid[py][px] = pulseR > 0.6 ? '·' : '░';
+            }
+        }
+
+        el.textContent = grid.map(r=>r.join('')).join('\n');
+    }
+    setInterval(tick, 60);  tick();
+})();
+
+// ── 6. CARRIER SCAN ──────────────────────────────────────────────
+// Multiple horizontal scan lines of noise. One row gradually resolves
+// into a clear carrier wave while the others fade to silence.
+(function() {
+    const el = document.getElementById('a6');
+    const st = document.getElementById('s6');
+    const W    = 24;
+    const ROWS = 7;
+    const LOCK_ROW = 3;
+    let t = 0;
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 230, 140, 182);
+        setStatus(st, name);
+        const ep = ease(pct);
+
+        let out = '';
+        for (let r = 0; r < ROWS; r++) {
+            const isTarget = r === LOCK_ROW;
+            const rowPhase = t * 0.12 + r * 1.4;
+            let row = '';
+
+            for (let i = 0; i < W; i++) {
+                const clean = Math.sin(rowPhase + i * 0.4) * 0.5 + 0.5;
+
+                let v;
+                if (name === 'search') {
+                    // All rows noisy
+                    const noise = Math.abs(Math.sin(t*0.13 + r*2.1 + i*0.8)) * 0.7 +
+                                  Math.abs(Math.sin(t*0.07 + i*1.3)) * 0.3;
+                    v = isTarget ? lerp(noise, clean, pct * 0.3) : noise;
+                } else if (name === 'lock') {
+                    if (isTarget) {
+                        v = lerp(Math.abs(Math.sin(t*0.13 + r*2.1 + i*0.8)) * 0.5, clean, ep);
+                    } else {
+                        // Others fade
+                        v = Math.abs(Math.sin(t*0.13 + r*2.1 + i*0.8)) * (1 - ep * 0.8);
+                    }
+                } else {
+                    if (isTarget) {
+                        // Bright pulsing wave
+                        const pulse = Math.sin(t * 0.3) * 0.15 + 0.85;
+                        v = clean * pulse;
+                    } else {
+                        v = 0; // silent
+                    }
+                }
+
+                const hi = clamp(Math.floor(v * 4), 0, 4);
+                row += isTarget
+                    ? ['─','▁','▃','▅','▇'][hi]
+                    : ['·','░','▒','▓','█'][hi];
+            }
+
+            const label = isTarget ? '»' : ' ';
+            out += label + '│' + row + '│\n';
+        }
+        el.textContent = out.trimEnd();
+    }
+    setInterval(tick, 50);  tick();
+})();
+
+// ── 7. ECHO RANGING ──────────────────────────────────────────────
+// A pulse is sent rightward; echoes return at random distances.
+// Over time the echo consistently returns from one point — lock.
+// A standing wave then forms between the transmitter and the target.
+(function() {
+    const el = document.getElementById('a7');
+    const st = document.getElementById('s7');
+    const W  = 24;
+    const TARGET = 18;
+    let t = 0;
+    const echoes = []; // { pos, life, dir }
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 230, 140, 182);
+        setStatus(st, name);
+        const ep = ease(pct);
+
+        const line = Array(W).fill('·');
+        line[0] = '◈'; // transmitter
+
+        if (name === 'search') {
+            // Send random pulses, get scattered echoes
+            if (t % 12 === 0) echoes.push({ pos: 1, life: W + 5, dir: 1, isEcho: false });
+
+            for (const e of echoes) {
+                e.pos += e.dir * 0.5;
+                if (!e.isEcho && e.pos >= rnd(8, W-2)) {
+                    echoes.push({ pos: Math.floor(e.pos), life: W, dir:-1, isEcho: true });
+                    e.life = 0;
+                }
+                const p = Math.round(e.pos);
+                if (p>=0&&p<W) line[p] = e.isEcho ? '◄' : '►';
+            }
+            // Remove dead
+            while (echoes.length && echoes[0].life-- <= 0) echoes.shift();
+
+        } else if (name === 'lock') {
+            // Echo consistently from TARGET
+            if (t % 14 === 0) {
+                echoes.length = 0;
+                echoes.push({ pos: 1, life: 40, dir: 1, isEcho: false, locked: true });
+            }
+            for (const e of echoes) {
+                e.pos += e.dir * 0.6;
+                if (!e.isEcho && e.pos >= lerp(rnd(8,W-2), TARGET, ep)) {
+                    echoes.push({ pos: Math.floor(e.pos), life: 30, dir:-1, isEcho:true });
+                    e.life = 0;
+                }
+                const p = Math.round(e.pos);
+                if (p>=0&&p<W) line[p] = e.isEcho ? '◄' : '►';
+            }
+            while (echoes.length && echoes[0].life-- <= 0) echoes.shift();
+            line[TARGET] = '│';
+
+        } else {
+            // Standing wave
+            echoes.length = 0;
+            line[0]      = '◈';
+            line[TARGET] = '◉';
+            for (let i = 1; i < TARGET; i++) {
+                const wave = Math.sin(t * 0.25 - i * Math.PI / (TARGET * 0.5));
+                const idx  = Math.floor(Math.abs(wave) * 4);
+                line[i] = ['·','░','▒','▓','█'][idx];
+            }
+            for (let i = TARGET + 1; i < W; i++) line[i] = '·';
+        }
+
+        el.textContent =
+            '┌' + '─'.repeat(W) + '┐\n' +
+            '│' + line.join('') + '│\n' +
+            '└' + '─'.repeat(W) + '┘\n' +
+            ' ' + ' '.repeat(TARGET) + (name==='resonate'?'└LOCK':'');
+    }
+    setInterval(tick, 55);  tick();
+})();
+
+// ── 8. NODE SYNCHRONY ────────────────────────────────────────────
+// A grid of nodes firing at random. They begin synchronising in
+// clusters, then all nodes fire in perfect unison, the rhythm
+// locking into a shared resonant pulse.
+(function() {
+    const el = document.getElementById('a8');
+    const st = document.getElementById('s8');
+    const COLS = 10, ROWS = 6;
+    let t = 0;
+
+    // Each node has its own phase offset
+    const offsets = Array(ROWS).fill(0).map(() =>
+        Array(COLS).fill(0).map(() => rnd(0, Math.PI * 2))
+    );
+
+    function tick() {
+        t++;
+        const { name, pct } = getPhase(t, 240, 145, 188);
+        setStatus(st, name);
+        const ep = ease(pct);
+
+        let out = '';
+        for (let r = 0; r < ROWS; r++) {
+            let row = '';
+            for (let c = 0; c < COLS; c++) {
+                let offset;
+                if (name === 'search') {
+                    offset = offsets[r][c]; // fully random phases
+                } else if (name === 'lock') {
+                    // Phases converging toward 0
+                    offset = lerp(offsets[r][c], 0, ep);
+                } else {
+                    offset = 0; // all in phase
+                }
+
+                const v     = Math.sin(t * 0.22 + offset) * 0.5 + 0.5;
+                const burst = name==='resonate' && Math.sin(t*0.22)*0.5+0.5 > 0.8;
+
+                let ch;
+                if (burst)         ch = '◉';
+                else if (v > 0.75) ch = '●';
+                else if (v > 0.5)  ch = '○';
+                else if (v > 0.25) ch = '◦';
+                else               ch = '·';
+
+                row += ch + ' ';
+            }
+            out += row.trimEnd() + '\n';
+        }
+
+        const syncPct = name==='resonate' ? '100' : name==='lock' ? String(Math.round(ep*99)).padStart(3) : '  0';
+        el.textContent = out.trimEnd() + '\n SYNC: ' + syncPct + '%';
+    }
+    setInterval(tick, 55);  tick();
+})();
+</script>
+</body>
+</html>
