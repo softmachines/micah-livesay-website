@@ -174,8 +174,11 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 }
 .loading-overlay.fade-out{opacity:0;pointer-events:none;}
 .loading-label{color:var(--gdim);font-size:11px;letter-spacing:2px;}
-.loading-bar-wrap{width:280px;height:2px;background:var(--gdark);overflow:hidden;}
-.loading-bar-fill{height:100%;background:var(--pink);width:0%;transition:width .3s;box-shadow:0 0 8px var(--pink);}
+.loading-waveform{
+    font-family:'Share Tech Mono',monospace;font-size:13px;line-height:1.7;
+    color:var(--green);text-shadow:0 0 6px rgba(0,255,65,.4);
+    text-align:center;white-space:pre;
+}
 .loading-detail{color:var(--gdark);font-size:10px;letter-spacing:1px;}
 </style>
 </head>
@@ -199,7 +202,7 @@ textarea.custom-chars{width:100%;background:transparent;border:1px solid var(--g
 <!-- LOADING OVERLAY — shown after splash, while camera + models initialise -->
 <div class="loading-overlay" id="loadingOverlay" style="display:none;">
     <div class="loading-label">LOADING CALIBRATION ENVIRONMENT</div>
-    <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loadingFill"></div></div>
+    <pre class="loading-waveform" id="loadingWaveform"></pre>
     <div class="loading-detail" id="loadingMsg">Loading hand tracking model…</div>
 </div>
 
@@ -698,35 +701,53 @@ let _faceState      = 'hidden';  // 'hidden' | 'glitch-in' | 'visible' | 'glitch
 let _faceLastSeenTs = 0;         // timestamp when face was last detected
 const FACE_LOSE_DELAY = 100;     // ms before triggering glitch-out
 
+// Generation counter — incremented on every new transition.
+// animationend and setTimeout callbacks check their captured generation against
+// the current value before acting. If they don't match they're stale (from an
+// interrupted transition) and do nothing. This prevents a glitch-out listener
+// that was orphaned by a glitch-in interruption from hiding the canvas after
+// the new glitch-in animation completes.
+let _faceGen = 0;
+
 function _triggerFaceGlitchIn() {
+    const gen = ++_faceGen;
     _faceState = 'glitch-in';
     const fc = document.getElementById('faceCanvas');
-    fc.style.display  = 'block';
-    fc.style.animation = '';       // no animation yet — let the render loop paint content first
-    fc.style.opacity  = '1';
+    fc.style.display   = 'block';
+    fc.style.animation = '';
+    fc.style.opacity   = '1';
 
-    // Wait two frames so renderFaceOverlays has drawn the mesh/eyes to the canvas
-    // before the CSS animation starts distorting it. This guarantees there is
-    // actual visible content for the animation to work with.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (_faceState !== 'glitch-in') return; // state changed during the wait — abort
+        if (gen !== _faceGen) return; // superseded by a newer transition
         fc.style.animation = 'none';
         void fc.offsetWidth;
         fc.style.animation = 'faceGlitchIn 0.62s linear forwards';
-        const _t = setTimeout(() => { if (_faceState === 'glitch-in') { fc.style.animation = ''; _faceState = 'visible'; } }, 800);
-        fc.addEventListener('animationend', () => { clearTimeout(_t); fc.style.animation = ''; _faceState = 'visible'; }, { once: true });
+        const _t = setTimeout(() => {
+            if (gen !== _faceGen) return;
+            fc.style.animation = ''; _faceState = 'visible';
+        }, 800);
+        fc.addEventListener('animationend', () => {
+            if (gen !== _faceGen) return; // stale — a newer transition took over
+            clearTimeout(_t); fc.style.animation = ''; _faceState = 'visible';
+        }, { once: true });
     }));
 }
 
 function _triggerFaceGlitchOut() {
+    const gen = ++_faceGen;
     _faceState = 'glitch-out';
     const fc = document.getElementById('faceCanvas');
     fc.style.animation = 'none';
     void fc.offsetWidth;
     fc.style.animation = 'faceGlitchOut 0.55s linear forwards';
-    // Fallback: if animationend never fires, hide after 700ms
-    const _t = setTimeout(() => { if (_faceState === 'glitch-out') { fc.style.animation = ''; fc.style.display = 'none'; _faceState = 'hidden'; } }, 700);
-    fc.addEventListener('animationend', () => { clearTimeout(_t); fc.style.animation = ''; fc.style.display = 'none'; _faceState = 'hidden'; }, { once: true });
+    const _t = setTimeout(() => {
+        if (gen !== _faceGen) return;
+        fc.style.animation = ''; fc.style.display = 'none'; _faceState = 'hidden';
+    }, 700);
+    fc.addEventListener('animationend', () => {
+        if (gen !== _faceGen) return; // stale — a newer transition took over
+        clearTimeout(_t); fc.style.animation = ''; fc.style.display = 'none'; _faceState = 'hidden';
+    }, { once: true });
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1151,31 +1172,82 @@ async function initMediaPipe() {
     }
 }
 
-// Loading bar — goal/display split so the bar always looks live.
-// setLoadingProgress updates the goal; the display animates toward it
-// independently so there's always visible movement.
+// Loading progress — milestones set the goal; waveform animation reads it.
 let _loadGoal = 0;
-let _loadVal  = 0;
-let _loadTick = null;
+function setLoadingProgress(pct) { _loadGoal = pct; }
 
-function setLoadingProgress(pct) {
-    _loadGoal = pct;
-}
-
-// Called when the overlay is actually shown — resets to 0 and starts animating.
-// This handles the case where models are already loaded before the splash is dismissed.
+// Waveform sync loading animation — always runs for exactly 4 seconds
+// regardless of how fast models actually load, so the animation is always seen.
+// Phases are time-driven (not progress-driven):
+//   0–2.5 s  → SEARCHING  (noisy source, barely correlated)
+//   2.5–3.5 s → LOCK       (source morphing toward target)
+//   3.5–4.0 s → RESONATING (perfect match, pulsing)
+// After 4 s the overlay fades out automatically.
 function _startLoadingDisplay() {
-    _loadVal = 0;
-    if (_loadTick) clearInterval(_loadTick);
-    _loadTick = setInterval(() => {
-        if (_loadVal >= _loadGoal) return;
-        const gap = _loadGoal - _loadVal;
-        // Ease-out: fast when gap is large, slow as it approaches goal
-        _loadVal += Math.max(0.3, gap * 0.06);
-        if (_loadVal > _loadGoal) _loadVal = _loadGoal;
-        const el = document.getElementById('loadingFill');
-        if (el) el.style.width = _loadVal.toFixed(1) + '%';
-    }, 30);
+    const el      = document.getElementById('loadingWaveform');
+    const overlay = document.getElementById('loadingOverlay');
+    const W        = 22;
+    const HC       = ' ▁▂▃▄▅▆▇█';
+    const DURATION = 4000;
+    const LOCK_AT  = 2500;
+    const RES_AT   = 3500;
+    const preNoise = Array(W).fill(0).map(() => Math.random());
+    const startTime = performance.now();
+    let _timer = null;
+
+    function clampW(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+    function lerpW(a,b,t){ return a+(b-a)*t; }
+    function easeW(t){ return t<.5?2*t*t:-1+(4-2*t)*t; }
+    function waveVal(i, ph, noiseAmt) {
+        return clampW(Math.sin(ph+i*0.45)*0.5+0.5 + preNoise[i%preNoise.length]*noiseAmt - noiseAmt*0.5, 0, 1);
+    }
+
+    function render() {
+        const elapsed = performance.now() - startTime;
+        const phase   = (elapsed / 1000) * 2.4;
+
+        let phaseName, pct;
+        if      (elapsed < LOCK_AT) { phaseName = 'search';   pct = elapsed / LOCK_AT; }
+        else if (elapsed < RES_AT)  { phaseName = 'lock';      pct = (elapsed-LOCK_AT)/(RES_AT-LOCK_AT); }
+        else                        { phaseName = 'resonate';  pct = (elapsed-RES_AT) /(DURATION-RES_AT); }
+
+        const ep = easeW(Math.max(0,Math.min(1,pct)));
+        let target='', source='', diff='';
+
+        for (let i=0; i<W; i++) {
+            const tgt = Math.sin(phase + i*0.45)*0.5 + 0.5;
+            let srcVal;
+            if      (phaseName==='search')   srcVal = waveVal(i, phase*0.7+1.5, 0.6);
+            else if (phaseName==='lock')      srcVal = lerpW(waveVal(i, phase*0.7+1.5, 0.6), tgt, ep);
+            else                             srcVal = clampW(tgt + Math.sin(elapsed*0.006)*0.08, 0, 1);
+            target += HC[Math.floor(tgt    *(HC.length-1))];
+            source += HC[Math.floor(srcVal *(HC.length-1))];
+            diff   += (1-Math.abs(tgt-srcVal))>0.85?'│':(1-Math.abs(tgt-srcVal))>0.5?':':'·';
+        }
+
+        const label = phaseName==='resonate'?'◉ PHASE MATCH':phaseName==='lock'?'◎ ALIGNING···':'  SEARCHING··';
+        if (el) el.textContent = 'TGT ▐'+target+'▌\n'+'    ─'+diff+'─\n'+'SRC ▐'+source+'▌\n\n'+label;
+
+        const msgEl = document.getElementById('loadingMsg');
+        if (msgEl) {
+            if      (phaseName==='resonate') msgEl.textContent = 'Neural uplink established';
+            else if (phaseName==='lock')     msgEl.textContent = 'Acquiring signal lock···';
+            else                            msgEl.textContent = 'Searching signal spectrum···';
+        }
+
+        if (elapsed >= DURATION) {
+            clearInterval(_timer);
+            setTimeout(() => {
+                overlay.classList.add('fade-out');
+                setTimeout(() => { overlay.style.display = 'none'; }, 650);
+            }, 200);
+        }
+    }
+
+    // Render once immediately so content is ready before the overlay is shown,
+    // then tick every 50 ms — same cadence as the original signal-lock demo.
+    render();
+    _timer = setInterval(render, 50);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1220,14 +1292,8 @@ async function startCamera(deviceId) {
         game.lastTs = performance.now();
         pickNextNote();
         setStatus('Running');
-        // Camera live — complete the loading bar and fade the overlay out
+        // Camera is live — loading animation handles its own 4-second fade-out
         setLoadingProgress(100);
-        document.getElementById('loadingMsg').textContent = 'Neural uplink established';
-        const _overlay = document.getElementById('loadingOverlay');
-        setTimeout(() => {
-            _overlay.classList.add('fade-out');
-            setTimeout(() => { _overlay.style.display = 'none'; }, 650);
-        }, 400);
         resizeCanvas();
         _fpsLast = performance.now(); _fpsFrames = 0;
         animFrame = requestAnimationFrame(renderLoop);
@@ -1246,8 +1312,10 @@ function stopCamera() {
     if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
     _teardown();
     setOscGain(0);
-    document.getElementById('noCamera').style.display    = '';
-    document.getElementById('loadingMsg').textContent    = 'Ready — click [ START ] to begin';
+    const _nc = document.getElementById('noCamera');
+    if (_nc) _nc.style.display = '';
+    const _lm = document.getElementById('loadingMsg');
+    if (_lm) _lm.textContent = 'Ready — click [ START ] to begin';
     document.getElementById('asciiCanvas').style.display = 'none';
     document.getElementById('trackingCanvas').style.display = 'none';
     // Reset face state so glitch-in fires again on next camera start
@@ -2194,8 +2262,8 @@ function init() {
         // After animation: hide splash, show loading overlay, start camera
         setTimeout(async () => {
             document.getElementById('splash').style.display = 'none';
-            document.getElementById('loadingOverlay').style.display = 'flex';
-            _startLoadingDisplay(); // begin bar animation from 0% toward current goal
+            _startLoadingDisplay(); // populate waveform content synchronously first
+            document.getElementById('loadingOverlay').style.display = 'flex'; // then reveal — all paint together
             // User gesture is still active — safe to start audio + camera
             initAudio();
             if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -2338,12 +2406,20 @@ function init() {
 
     // ── Preset system ───────────────────────────────────────────────
     renderPresetList();
-    // Load bigfuntime2 as the default on startup, falling back to Cyber Lead if not found
-    const _defaultPreset = getUserPresets().find(p => p.name === 'bigfuntime2');
-    if (_defaultPreset) {
-        applySynthPreset(_defaultPreset.s);
+    // Restore last active state (persisted across sessions) if available.
+    // Falls back to bigfuntime2 if no active state, then CYBER LEAD.
+    const _lastState = localStorage.getItem(ACTIVE_STATE_KEY);
+    if (_lastState) {
+        try { applySynthPreset(JSON.parse(_lastState)); }
+        catch (_) {
+            const _fb = getUserPresets().find(p => p.name === 'bigfuntime2');
+            applySynthPreset(_fb ? _fb.s : FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s);
+        }
     } else {
-        applySynthPreset(FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s);
+        const _defaultPreset = getUserPresets().find(p => p.name === 'bigfuntime2');
+        applySynthPreset(_defaultPreset
+            ? _defaultPreset.s
+            : FACTORY_PRESETS.find(p => p.name === 'CYBER LEAD').s);
     }
     document.getElementById('btnSavePreset').addEventListener('click', () => {
         const name = document.getElementById('presetName').value.trim();
